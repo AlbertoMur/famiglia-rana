@@ -356,6 +356,12 @@ function renderQuestion(q) {
     box.classList.add('enter');
   }
 
+  if (q.chess) {
+    renderChessPuzzle(q);
+    renderJollyButton(q);
+    return;
+  }
+
   const container = document.getElementById('options-container');
   container.innerHTML = '';
 
@@ -392,6 +398,166 @@ function renderQuestion(q) {
 
   // Jolly: mostra pulsante "Usa Jolly" se lo si ha
   renderJollyButton(q);
+}
+
+// ─── Puzzle di scacchi ───────────────────────────────────────────────────────
+// Il giocatore muove sulla scacchiera; l'avversario risponde da solo.
+// Mossa diversa dalla soluzione = game over. All'ultima mossa vale qualsiasi matto.
+
+const PIECE_GLYPHS = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+
+let chessGame     = null;   // istanza chess.js
+let chessQuestion = null;
+let chessPlayer   = 'w';    // colore di chi risolve
+let chessStep     = 0;      // indice in chess.moves
+let chessSelected = null;   // casa selezionata
+let chessLastMove = null;
+let chessBusy     = false;  // l'avversario sta rispondendo
+
+function sanEquals(a, b) {
+  const clean = s => String(s).replace(/[+#!?]/g, '');
+  return clean(a) === clean(b);
+}
+
+function renderChessPuzzle(q) {
+  const container = document.getElementById('options-container');
+  container.innerHTML = '';
+
+  if (typeof Chess === 'undefined') {
+    container.innerHTML = '<p class="chess-info">Scacchiera non disponibile: controlla la connessione e ricarica.</p>';
+    return;
+  }
+
+  chessQuestion = q;
+  chessGame     = new Chess(q.chess.fen);
+  chessPlayer   = chessGame.turn();
+  chessStep     = 0;
+  chessSelected = null;
+  chessLastMove = null;
+  chessBusy     = false;
+
+  const n = Math.ceil(q.chess.moves.length / 2);
+  const wrap = document.createElement('div');
+  wrap.className = 'chess-wrap';
+  wrap.innerHTML = `
+    <p class="chess-info" id="chess-info">Muove il ${chessPlayer === 'w' ? 'bianco' : 'nero'} · matto in ${n}</p>
+    <div class="chess-board" id="chess-board"></div>
+  `;
+  container.appendChild(wrap);
+
+  document.getElementById('chess-board').addEventListener('click', (e) => {
+    const sq = e.target.closest('.sq');
+    if (sq) onChessSquare(sq.dataset.sq);
+  });
+
+  drawChessBoard();
+}
+
+function drawChessBoard() {
+  const board = document.getElementById('chess-board');
+  if (!board) return;
+
+  const files = 'abcdefgh';
+  const flip = chessPlayer === 'b'; // la scacchiera è sempre dal lato di chi risolve
+  const targets = chessSelected
+    ? chessGame.moves({ square: chessSelected, verbose: true }).map(m => m.to)
+    : [];
+
+  let html = '';
+  for (let r = 0; r < 8; r++) {
+    for (let f = 0; f < 8; f++) {
+      const fileIdx = flip ? 7 - f : f;
+      const rank = flip ? r + 1 : 8 - r;
+      const sq = files[fileIdx] + rank;
+      const piece = chessGame.get(sq);
+
+      const cls = ['sq', (fileIdx + rank) % 2 === 1 ? 'dark' : 'light'];
+      if (sq === chessSelected) cls.push('selected');
+      if (chessLastMove && (sq === chessLastMove.from || sq === chessLastMove.to)) cls.push('last');
+      if (targets.includes(sq)) cls.push(piece ? 'target capture' : 'target');
+
+      const glyph = piece
+        ? `<span class="pc ${piece.color === 'w' ? 'white' : 'black'}">${PIECE_GLYPHS[piece.type]}︎</span>`
+        : '';
+      const fileLabel = r === 7 ? `<span class="coord file">${files[fileIdx]}</span>` : '';
+      const rankLabel = f === 0 ? `<span class="coord rank">${rank}</span>` : '';
+
+      html += `<button type="button" class="${cls.join(' ')}" data-sq="${sq}" aria-label="${sq}">${glyph}${fileLabel}${rankLabel}</button>`;
+    }
+  }
+  board.innerHTML = html;
+}
+
+function onChessSquare(sq) {
+  if (!gameActive || chessBusy) return;
+
+  if (chessSelected) {
+    const move = chessGame.moves({ square: chessSelected, verbose: true }).find(m => m.to === sq);
+    if (move) { playChessMove(move); return; }
+  }
+
+  const piece = chessGame.get(sq);
+  chessSelected = (piece && piece.color === chessPlayer && sq !== chessSelected) ? sq : null;
+  drawChessBoard();
+}
+
+function playChessMove(m) {
+  const solution = chessQuestion.chess.moves;
+  const expected = solution[chessStep];
+  const isLast = chessStep === solution.length - 1;
+
+  // Promozione: il pezzo indicato dalla soluzione, altrimenti donna
+  const req = { from: m.from, to: m.to };
+  if (m.flags.includes('p')) {
+    const promo = String(expected).match(/=([QRBN])/i);
+    req.promotion = promo ? promo[1].toLowerCase() : 'q';
+  }
+
+  const made = chessGame.move(req);
+  chessSelected = null;
+  chessLastMove = made;
+  drawChessBoard();
+
+  const correct = isLast ? chessGame.in_checkmate() : sanEquals(made.san, expected);
+  if (!correct) { chessFail(); return; }
+
+  chessStep++;
+  if (chessStep >= solution.length) { chessSolved(); return; }
+
+  // Risposta automatica dell'avversario
+  playTone(660, 'sine', getAudioCtx().currentTime, 0.12, 0.2);
+  chessBusy = true;
+  setTimeout(() => {
+    if (!gameActive) return; // tempo scaduto nel frattempo
+    chessLastMove = chessGame.move(solution[chessStep]);
+    chessStep++;
+    chessBusy = false;
+    drawChessBoard();
+  }, 700);
+}
+
+function chessFail() {
+  gameActive = false;
+  clearTimer();
+  playWrong();
+  const board = document.getElementById('chess-board');
+  if (board) board.classList.add('animate-shake');
+  setTimeout(() => { playGameOver(); showGameOver('chess'); }, 900);
+}
+
+function chessSolved() {
+  clearTimer();
+  chessBusy = true;
+  const board = document.getElementById('chess-board');
+  const info = document.getElementById('chess-info');
+  if (board) board.classList.add('mate');
+  if (info) info.textContent = 'Scacco matto! ♚';
+
+  const solvedOpt = chessQuestion.options.find(o => o.correct);
+  setTimeout(() => {
+    if (solvedOpt) handleAnswer(solvedOpt, board);
+    else { gameActive = false; showWin(); }
+  }, 900);
 }
 
 // ─── Jolly ───────────────────────────────────────────────────────────────────
@@ -619,8 +785,16 @@ const TIMEOUT_MESSAGES = [
   'Hai riflettuto così tanto che è finito il tempo.'
 ];
 
+const CHESS_MESSAGES = [
+  'Mossa sbagliata. Da qualche parte un grande maestro piange.',
+  'Bella mossa. Per l\'avversario.',
+  'Scacco matto… ma a te.'
+];
+
 function showGameOver(reason) {
-  const pool = reason === 'timeout' ? TIMEOUT_MESSAGES : GAMEOVER_MESSAGES;
+  const pool = reason === 'timeout' ? TIMEOUT_MESSAGES
+             : reason === 'chess'   ? CHESS_MESSAGES
+             : GAMEOVER_MESSAGES;
   const msg = document.getElementById('gameover-message');
   if (msg) msg.textContent = pool[Math.floor(Math.random() * pool.length)];
   showScreen('screen-gameover');

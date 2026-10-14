@@ -17,6 +17,7 @@ const STORAGE_LAYOUT = 'badnews_admin_layout';
 
 document.addEventListener('DOMContentLoaded', () => {
   loadFromStorage();
+  renderChessSelect();
   bindEvents();
   renderAll();
 });
@@ -194,6 +195,7 @@ function bindEvents() {
   document.getElementById('btn-cancel-form').addEventListener('click', closeForm);
   document.getElementById('btn-save-question').addEventListener('click', saveQuestion);
   document.getElementById('btn-add-option').addEventListener('click', addOptionRow);
+  document.getElementById('field-chess').addEventListener('change', toggleChessFields);
   document.getElementById('btn-refresh-graph').addEventListener('click', () => renderGraph(true));
   document.getElementById('btn-fit-graph').addEventListener('click', graphFitView);
   document.getElementById('btn-reset-layout').addEventListener('click', resetLayout);
@@ -248,8 +250,10 @@ function renderQuestionList() {
           <div class="q-text">${escHtml(q.text)}</div>
           <div class="q-meta">
             <span>⏱ ${q.timer}s</span>
-            <span>✓ ${correctCount} corretta/e</span>
-            <span>⊞ ${q.options.length} opzioni</span>
+            ${q.chess
+              ? `<span>♟ ${escHtml(q.chess.name)}</span>`
+              : `<span>✓ ${correctCount} corretta/e</span>
+            <span>⊞ ${q.options.length} opzioni</span>`}
           </div>
         </div>
         <div class="question-card-actions">
@@ -275,6 +279,7 @@ function openNewQuestionForm() {
   clearOptionsUI();
   addOptionRow();
   addOptionRow();
+  setChessFields(null);
   showFormPanel();
 }
 
@@ -290,7 +295,46 @@ function editQuestion(id) {
   document.getElementById('field-remove-item-msg').value = q.removeItemMsg || '';
   clearOptionsUI();
   q.options.forEach(opt => addOptionRow(opt));
+  setChessFields(q);
   showFormPanel();
+}
+
+// ─── Blocco scacchi ───────────────────────────────────────────────────────────
+
+function renderChessSelect() {
+  if (typeof CHESS_PUZZLES === 'undefined') return;
+  const sel = document.getElementById('field-chess');
+  Object.entries(CHESS_PUZZLES).forEach(([id, p]) => {
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = p.name;
+    sel.appendChild(o);
+  });
+}
+
+function setChessFields(q) {
+  const sel = document.getElementById('field-chess');
+  const chess = q && q.chess;
+  // Puzzle salvato ma non più in libreria: lo aggiungo al menu per non perderlo
+  if (chess && !Array.from(sel.options).some(o => o.value === chess.id)) {
+    const o = document.createElement('option');
+    o.value = chess.id;
+    o.textContent = chess.name;
+    sel.appendChild(o);
+  }
+  sel.value = chess ? chess.id : '';
+
+  const solved = chess ? (q.options.find(o => o.correct) || {}) : {};
+  document.getElementById('field-chess-next').innerHTML =
+    '<option value="">— Nessuna (vittoria) —</option>' + getQuestionOptions(solved.next || '');
+  document.getElementById('field-chess-grants').value = solved.grantsItem || '';
+  toggleChessFields();
+}
+
+function toggleChessFields() {
+  const on = !!document.getElementById('field-chess').value;
+  document.getElementById('chess-fields').style.display    = on ? 'block' : 'none';
+  document.getElementById('options-section').style.display = on ? 'none'  : 'block';
 }
 
 function showFormPanel() {
@@ -411,11 +455,29 @@ function saveQuestion() {
   if (!text) { toast('Testo domanda obbligatorio', 'error'); return; }
   if (!timer || timer < 1) { toast('Timer non valido', 'error'); return; }
 
-  const rows = document.querySelectorAll('#options-rows .option-row');
-  if (rows.length < 1) { toast('Almeno 1 opzione', 'error'); return; }
-
+  const chessId = document.getElementById('field-chess').value;
+  let chess = null;
   const options = [];
   let hasCorrect = false;
+
+  if (chessId) {
+    // Domanda scacchi: un'unica opzione "corretta" che rappresenta il puzzle risolto
+    const prev = editingId && adminQuestions[editingId] && adminQuestions[editingId].chess;
+    const puzzle = (typeof CHESS_PUZZLES !== 'undefined' && CHESS_PUZZLES[chessId]) || (prev && prev.id === chessId ? prev : null);
+    if (!puzzle) { toast('Puzzle non trovato', 'error'); return; }
+    chess = { id: chessId, name: puzzle.name, fen: puzzle.fen, moves: [...puzzle.moves] };
+
+    const opt = { text: '♟ Puzzle risolto', correct: true };
+    const next   = document.getElementById('field-chess-next').value;
+    const grants = document.getElementById('field-chess-grants').value.trim();
+    if (next)   opt.next = next;
+    if (grants) opt.grantsItem = grants;
+    options.push(opt);
+    hasCorrect = true;
+  }
+
+  const rows = chessId ? [] : document.querySelectorAll('#options-rows .option-row');
+  if (!chessId && rows.length < 1) { toast('Almeno 1 opzione', 'error'); return; }
 
   rows.forEach(row => {
     const optText  = row.querySelector('.opt-text').value.trim();
@@ -450,6 +512,7 @@ function saveQuestion() {
   }
 
   const q = { id, text, timer, options };
+  if (chess)         q.chess         = chess;
   if (removeItem)    q.removeItem    = removeItem;
   if (removeItemMsg) q.removeItemMsg = removeItemMsg;
   adminQuestions[id] = q;
@@ -765,7 +828,8 @@ function renderGraph(resetView = true) {
     const bg     = isStart ? '#2d1800' : isOrphan ? '#1e1e10' : '#16213e';
     const border = isStart ? '#ffa502' : isOrphan ? '#665544' : '#2e3f6e';
     const bw     = isStart ? 2.5 : 1.5;
-    const txt    = q.text.length > 30 ? q.text.substring(0, 28) + '…' : q.text;
+    const label  = (q.chess ? '♟ ' : '') + q.text;
+    const txt    = label.length > 30 ? label.substring(0, 28) + '…' : label;
     const idPillW = id.length * 8 + 16;
 
     // Wrapper trascinabile — coordinate interne tutte relative a (0,0)

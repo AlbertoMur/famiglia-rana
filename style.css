@@ -558,6 +558,116 @@ button {
   50%      { opacity: 0.45; }
 }
 
+/* ── Puzzle di scacchi ───────────────── */
+
+.chess-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.chess-info {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.chess-board {
+  --tilt: 0.6deg;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: min(100%, 420px);
+  aspect-ratio: 1 / 1;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 5px 6px 0 var(--ink);
+  overflow: hidden;
+  transform: rotate(var(--tilt));
+  animation: cardIn 0.45s 0.1s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  transition: box-shadow 0.3s;
+}
+
+.chess-board.mate {
+  box-shadow: 5px 6px 0 var(--ink), 0 0 0 7px rgba(143, 207, 143, 0.75);
+}
+
+.chess-board .sq {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  cursor: pointer;
+  font-family: 'Segoe UI Symbol', 'Apple Symbols', 'Noto Sans Symbols 2', 'DejaVu Sans', serif;
+  font-size: clamp(1.5rem, 8.5vw, 2.5rem);
+  line-height: 1;
+}
+
+.sq.light { background: var(--paper); }
+.sq.dark {
+  background-color: #d2bb94;
+  /* tratteggio a matita */
+  background-image: repeating-linear-gradient(45deg, rgba(42, 38, 34, 0.08) 0 2px, transparent 2px 6px);
+}
+
+.sq.last     { box-shadow: inset 0 0 0 3px rgba(243, 154, 134, 0.95); }
+.sq.selected { background: var(--butter); box-shadow: inset 0 0 0 3px var(--gold); }
+
+/* Case raggiungibili dal pezzo selezionato */
+.sq.target::after {
+  content: '';
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background: rgba(42, 38, 34, 0.35);
+}
+.sq.target.capture::after {
+  width: 86%;
+  height: 86%;
+  background: transparent;
+  border: 3px solid rgba(214, 69, 69, 0.65);
+}
+
+.pc {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+.pc.black { color: var(--ink); }
+.pc.white {
+  color: #fffdf6;
+  text-shadow:
+    1px 1px 0 var(--ink), -1px -1px 0 var(--ink),
+    1px -1px 0 var(--ink), -1px 1px 0 var(--ink),
+    0 1px 0 var(--ink), 0 -1px 0 var(--ink),
+    1px 0 0 var(--ink), -1px 0 0 var(--ink);
+}
+
+.coord {
+  position: absolute;
+  font-family: var(--font-hand);
+  font-size: 0.65rem;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.coord.file { right: 3px; bottom: 1px; }
+.coord.rank { left: 3px; top: 1px; }
+
+@media (hover: hover) {
+  .chess-board .sq:hover { filter: brightness(1.06); }
+}
+
 /* ── Inventario ──────────────────────── */
 
 #inventory-bar {

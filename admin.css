@@ -179,6 +179,22 @@ header .badge {
   gap: 14px;
 }
 
+/* ── Blocco scacchi ─────────────────── */
+
+.chess-block {
+  border: 1px dashed #4a5a7a;
+  border-radius: 8px;
+  padding: 12px 14px 2px;
+  margin-bottom: 14px;
+  background: rgba(126, 200, 227, 0.05);
+}
+
+.chess-note {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: -4px 0 12px;
+}
+
 /* ── Option rows ────────────────────── */
 
 .option-row {
