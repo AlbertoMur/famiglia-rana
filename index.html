@@ -41,12 +41,13 @@
       <h1>Bad News Quiz</h1>
       <p class="subtitle">Quanto ci conosci davvero? Una risposta sbagliata e tutto finisce.</p>
       <button id="btn-start" class="btn-primary">INIZIA</button>
+      <button class="btn-from-scratch" style="display:none">↺ Ricomincia da capo</button>
       <p class="sound-hint">🔊 Alza il volume e togli il silenzioso</p>
 
       <div class="collection-section">
         <p class="coll-label">Oggetti trovati</p>
         <div id="collection-display"></div>
-        <button id="btn-reset-collection" class="btn-reset-coll">↺ Ricomincia da zero</button>
+        <button id="btn-reset-collection" class="btn-reset-coll">🗑 Cancella salvataggio</button>
       </div>
     </div>
   </div>
@@ -94,6 +95,16 @@
       <h2 class="stamp">BAD NEWS</h2>
       <p id="gameover-message"></p>
       <button id="btn-gameover-retry" class="btn-primary">RIPROVA</button>
+      <button class="btn-from-scratch" style="display:none">↺ Ricomincia da capo</button>
+    </div>
+  </div>
+
+  <!-- ── Falò acceso (checkpoint) ─────────────────── -->
+  <div id="bonfire-overlay" aria-live="polite">
+    <div class="bonfire-card">
+      <span class="bonfire-flame">🔥</span>
+      <p class="bonfire-title">Falò acceso</p>
+      <p class="bonfire-sub">Se perdi, ripartirai da qui</p>
     </div>
   </div>
 

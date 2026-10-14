@@ -77,6 +77,11 @@
           <textarea id="field-text" placeholder="Scrivi la domanda..."></textarea>
         </div>
 
+        <label class="bonfire-toggle">
+          <input type="checkbox" id="field-bonfire" />
+          <span>🔥 <strong>Falò</strong> — chi arriva a questa domanda, se perde, riparte da qui</span>
+        </label>
+
         <div class="chess-block">
           <div class="form-group">
             <label for="field-chess">♟ Scacchi</label>
@@ -96,6 +101,26 @@
               </div>
             </div>
             <p class="chess-note">Il giocatore muove i pezzi sulla scacchiera: una mossa sbagliata è game over.</p>
+          </div>
+        </div>
+
+        <div class="hidden-block" id="hidden-block">
+          <div class="form-group">
+            <label for="field-hidden-word">👆 Risposta nascosta (opzionale)</label>
+            <input type="text" id="field-hidden-word" placeholder="Parola del testo da toccare (es. importante)" />
+          </div>
+          <div id="hidden-fields" style="display:none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="field-hidden-next">Se trovata vai a</label>
+                <select id="field-hidden-next"></select>
+              </div>
+              <div class="form-group">
+                <label for="field-hidden-grants">Concede oggetto (opzionale)</label>
+                <input type="text" id="field-hidden-grants" placeholder="ID oggetto (es. chiave)" />
+              </div>
+            </div>
+            <p class="chess-note">La parola deve comparire nel testo della domanda. Le opzioni restano visibili come esca: di solito sono tutte sbagliate.</p>
           </div>
         </div>
 

@@ -296,6 +296,67 @@ function showItemConsumed(msg) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if (id === 'screen-title') updateCheckpointButtons();
+}
+
+// ─── Falò (checkpoint) ───────────────────────────────────────────────────────
+// Una domanda con bonfire: true accende il falò. Se il giocatore perde riparte da
+// lì con l'inventario che aveva in quel momento. Il falò resta salvato anche se
+// si chiude la pagina, e si spegne quando si vince o si ricomincia da capo.
+
+const CHECKPOINT_KEY = 'badnews_checkpoint';
+let checkpoint = null;
+
+try { checkpoint = JSON.parse(localStorage.getItem(CHECKPOINT_KEY)); } catch (e) { checkpoint = null; }
+
+function validCheckpoint() {
+  // Le domande potrebbero essere cambiate dopo un aggiornamento
+  return checkpoint && gameQuestions && gameQuestions[checkpoint.questionId] ? checkpoint : null;
+}
+
+function saveCheckpoint(questionId) {
+  checkpoint = {
+    questionId,
+    inventory: inventory.map(i => ({ ...i })),
+    questionCount: questionCount - 1 // loadQuestion lo incrementa di nuovo
+  };
+  try { localStorage.setItem(CHECKPOINT_KEY, JSON.stringify(checkpoint)); } catch (e) {}
+}
+
+function clearCheckpoint() {
+  checkpoint = null;
+  try { localStorage.removeItem(CHECKPOINT_KEY); } catch (e) {}
+}
+
+function updateCheckpointButtons() {
+  const has = !!validCheckpoint();
+  document.getElementById('btn-start').textContent          = has ? 'CONTINUA 🔥' : 'INIZIA';
+  document.getElementById('btn-gameover-retry').textContent = has ? 'RIPARTI DAL FALÒ 🔥' : 'RIPROVA';
+  document.querySelectorAll('.btn-from-scratch').forEach(b => { b.style.display = has ? '' : 'none'; });
+}
+
+function playBonfire() {
+  const t = getAudioCtx().currentTime;
+  [196, 247, 294, 392].forEach((f, i) => playTone(f, 'triangle', t + i * 0.12, 1.2, 0.18));
+}
+
+function showBonfireLit(onDone) {
+  const overlay = document.getElementById('bonfire-overlay');
+  playBonfire();
+  overlay.classList.add('show');
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    onDone();
+  }, 2300);
+}
+
+function showNotice(msg) {
+  const notif = document.getElementById('item-notification');
+  if (!notif) return;
+  notif.textContent = msg;
+  notif.classList.remove('consumed');
+  notif.classList.add('show');
+  setTimeout(() => notif.classList.remove('show'), 2200);
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
@@ -303,34 +364,53 @@ function showScreen(id) {
 document.addEventListener('DOMContentLoaded', () => {
   if (needsUnlock()) initLockScreen();
   renderTitleCollection();
+  updateCheckpointButtons();
 
+  // INIZIA / CONTINUA e RIPROVA / RIPARTI DAL FALÒ: dal falò se c'è
   document.getElementById('btn-start').addEventListener('click', () => {
     getAudioCtx();
-    startGame();
+    startGame(true);
   });
-  document.getElementById('btn-gameover-retry').addEventListener('click', startGame);
+  document.getElementById('btn-gameover-retry').addEventListener('click', () => startGame(true));
+  document.querySelectorAll('.btn-from-scratch').forEach(b => {
+    b.addEventListener('click', () => { getAudioCtx(); startGame(false); });
+  });
   document.getElementById('btn-win-restart').addEventListener('click', () => {
     renderTitleCollection(); // aggiorna collezione prima di tornare al titolo
-    startGame();
+    startGame(false);
   });
   document.getElementById('btn-reset-collection').addEventListener('click', () => {
-    if (confirm('Sei sicuro? Tutti gli oggetti trovati verranno dimenticati.')) {
+    if (confirm('Sei sicuro? Verranno cancellati gli oggetti trovati e il falò: si ricomincia da zero.')) {
       resetCollection();
+      clearCheckpoint();
+      updateCheckpointButtons();
     }
   });
 });
 
 // ─── Game Flow ───────────────────────────────────────────────────────────────
 
-function startGame() {
+function startGame(fromCheckpoint = false) {
   clearTimer();
-  // Ogni run parte con tutti gli oggetti già trovati in passato
-  inventory = Object.values(persistentCollection).map(item => ({ ...item }));
+  const cp = fromCheckpoint ? validCheckpoint() : null;
+
+  if (cp) {
+    // Si riparte dal falò con l'inventario di quel momento
+    inventory = cp.inventory.map(item => ({ ...item }));
+    questionCount = cp.questionCount;
+    currentQuestionId = cp.questionId;
+  } else {
+    clearCheckpoint();
+    // Ogni run parte con tutti gli oggetti già trovati in passato
+    inventory = Object.values(persistentCollection).map(item => ({ ...item }));
+    questionCount = 0;
+    currentQuestionId = gameStartQuestion;
+  }
+
   updateInventoryUI();
-  questionCount = 0;
-  currentQuestionId = gameStartQuestion;
   gameActive = true;
   loadQuestion(currentQuestionId);
+  if (cp) showNotice('🔥 Riparti dal falò');
 }
 
 function loadQuestion(id) {
@@ -338,15 +418,23 @@ function loadQuestion(id) {
   if (!q) { console.error('Domanda non trovata:', id); return; }
   showScreen('screen-game');
   questionCount++;
+
+  // Falò: si accende la prima volta che ci si arriva (snapshot prima di eventuali rimozioni)
+  const newlyLit = q.bonfire && (!checkpoint || checkpoint.questionId !== id);
+  if (q.bonfire) saveCheckpoint(id);
+
   const counter = document.getElementById('q-counter');
-  if (counter) counter.textContent = 'Domanda ' + questionCount;
+  if (counter) counter.textContent = 'Domanda ' + questionCount + (checkpoint ? ' · 🔥' : '');
+
   if (q.removeItem) consumeItem(q.removeItem, q.removeItemMsg || null);
   renderQuestion(q);
-  startTimer(q.timer);
+
+  if (newlyLit) showBonfireLit(() => { if (gameActive) startTimer(q.timer); });
+  else startTimer(q.timer);
 }
 
 function renderQuestion(q) {
-  document.getElementById('question-text').textContent = q.text;
+  renderQuestionText(q);
 
   // Riavvia l'animazione d'entrata del foglietto domanda
   const box = document.querySelector('.question-box');
@@ -367,7 +455,8 @@ function renderQuestion(q) {
 
   const colors = ['btn-red', 'btn-green', 'btn-blue', 'btn-orange'];
 
-  q.options.forEach((opt, i) => {
+  // La risposta nascosta non è un bottone: si tocca nel testo della domanda
+  q.options.filter(o => !o.hidden).forEach((opt, i) => {
     const btn = document.createElement('button');
     btn.className = 'option-btn ' + (colors[i] || 'btn-red');
 
@@ -398,6 +487,32 @@ function renderQuestion(q) {
 
   // Jolly: mostra pulsante "Usa Jolly" se lo si ha
   renderJollyButton(q);
+}
+
+// ─── Risposta nascosta (omaggio all'Impossible Quiz) ─────────────────────────
+// Una parola del testo è toccabile: sembra identica alle altre, ma è la risposta giusta.
+
+function renderQuestionText(q) {
+  const el = document.getElementById('question-text');
+  el.textContent = q.text;
+
+  const hidden = q.options && q.options.find(o => o.hidden);
+  if (!hidden) return;
+
+  const idx = q.text.toLowerCase().indexOf(hidden.text.toLowerCase());
+  if (idx === -1) return;
+
+  const word = document.createElement('span');
+  word.className = 'hidden-answer';
+  word.textContent = q.text.slice(idx, idx + hidden.text.length);
+  word.addEventListener('click', () => {
+    if (!gameActive) return;
+    word.classList.add('found');
+    handleAnswer(hidden, word);
+  });
+
+  el.textContent = '';
+  el.append(q.text.slice(0, idx), word, q.text.slice(idx + hidden.text.length));
 }
 
 // ─── Puzzle di scacchi ───────────────────────────────────────────────────────
@@ -797,10 +912,12 @@ function showGameOver(reason) {
              : GAMEOVER_MESSAGES;
   const msg = document.getElementById('gameover-message');
   if (msg) msg.textContent = pool[Math.floor(Math.random() * pool.length)];
+  updateCheckpointButtons();
   showScreen('screen-gameover');
 }
 
 function showWin() {
+  clearCheckpoint(); // partita finita: il falò si spegne
   playVictory();
   // Personalizza messaggio vittoria se si ha la lettera segreta
   const winMsg = document.getElementById('win-message');

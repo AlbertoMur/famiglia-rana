@@ -196,6 +196,7 @@ function bindEvents() {
   document.getElementById('btn-save-question').addEventListener('click', saveQuestion);
   document.getElementById('btn-add-option').addEventListener('click', addOptionRow);
   document.getElementById('field-chess').addEventListener('change', toggleChessFields);
+  document.getElementById('field-hidden-word').addEventListener('input', toggleHiddenFields);
   document.getElementById('btn-refresh-graph').addEventListener('click', () => renderGraph(true));
   document.getElementById('btn-fit-graph').addEventListener('click', graphFitView);
   document.getElementById('btn-reset-layout').addEventListener('click', resetLayout);
@@ -250,10 +251,12 @@ function renderQuestionList() {
           <div class="q-text">${escHtml(q.text)}</div>
           <div class="q-meta">
             <span>⏱ ${q.timer}s</span>
+            ${q.bonfire ? '<span>🔥 Falò</span>' : ''}
             ${q.chess
               ? `<span>♟ ${escHtml(q.chess.name)}</span>`
               : `<span>✓ ${correctCount} corretta/e</span>
-            <span>⊞ ${q.options.length} opzioni</span>`}
+            <span>⊞ ${q.options.filter(o => !o.hidden).length} opzioni</span>`}
+            ${q.options.some(o => o.hidden) ? '<span>👆 nascosta</span>' : ''}
           </div>
         </div>
         <div class="question-card-actions">
@@ -276,10 +279,12 @@ function openNewQuestionForm() {
   document.getElementById('field-timer').value = '60';
   document.getElementById('field-remove-item').value = '';
   document.getElementById('field-remove-item-msg').value = '';
+  document.getElementById('field-bonfire').checked = false;
   clearOptionsUI();
   addOptionRow();
   addOptionRow();
   setChessFields(null);
+  setHiddenFields(null);
   showFormPanel();
 }
 
@@ -293,9 +298,11 @@ function editQuestion(id) {
   document.getElementById('field-timer').value = q.timer;
   document.getElementById('field-remove-item').value = q.removeItem || '';
   document.getElementById('field-remove-item-msg').value = q.removeItemMsg || '';
+  document.getElementById('field-bonfire').checked = !!q.bonfire;
   clearOptionsUI();
-  q.options.forEach(opt => addOptionRow(opt));
+  q.options.filter(o => !o.hidden).forEach(opt => addOptionRow(opt));
   setChessFields(q);
+  setHiddenFields(q);
   showFormPanel();
 }
 
@@ -335,6 +342,24 @@ function toggleChessFields() {
   const on = !!document.getElementById('field-chess').value;
   document.getElementById('chess-fields').style.display    = on ? 'block' : 'none';
   document.getElementById('options-section').style.display = on ? 'none'  : 'block';
+  document.getElementById('hidden-block').style.display    = on ? 'none'  : 'block';
+}
+
+// ─── Blocco risposta nascosta ─────────────────────────────────────────────────
+// Salvata come opzione corretta con hidden: true (il gioco non la mostra come bottone)
+
+function setHiddenFields(q) {
+  const hidden = q ? (q.options.find(o => o.hidden) || null) : null;
+  document.getElementById('field-hidden-word').value = hidden ? hidden.text : '';
+  document.getElementById('field-hidden-next').innerHTML =
+    '<option value="">— Nessuna (vittoria) —</option>' + getQuestionOptions(hidden ? hidden.next || '' : '');
+  document.getElementById('field-hidden-grants').value = hidden ? hidden.grantsItem || '' : '';
+  toggleHiddenFields();
+}
+
+function toggleHiddenFields() {
+  const on = !!document.getElementById('field-hidden-word').value.trim();
+  document.getElementById('hidden-fields').style.display = on ? 'block' : 'none';
 }
 
 function showFormPanel() {
@@ -505,7 +530,23 @@ function saveQuestion() {
   });
 
   if (options.length === 0) { toast('Aggiungi almeno un\'opzione con testo', 'error'); return; }
-  if (!hasCorrect) { toast('Almeno una risposta deve essere corretta', 'error'); return; }
+
+  // Risposta nascosta: la parola da toccare nel testo della domanda
+  const hiddenWord = chessId ? '' : document.getElementById('field-hidden-word').value.trim();
+  if (hiddenWord) {
+    if (!text.toLowerCase().includes(hiddenWord.toLowerCase())) {
+      toast(`"${hiddenWord}" non compare nel testo della domanda`, 'error'); return;
+    }
+    const hiddenOpt = { text: hiddenWord, correct: true, hidden: true };
+    const hNext   = document.getElementById('field-hidden-next').value;
+    const hGrants = document.getElementById('field-hidden-grants').value.trim();
+    if (hNext)   hiddenOpt.next = hNext;
+    if (hGrants) hiddenOpt.grantsItem = hGrants;
+    options.push(hiddenOpt);
+    hasCorrect = true;
+  }
+
+  if (!hasCorrect) { toast('Almeno una risposta deve essere corretta (o una risposta nascosta)', 'error'); return; }
 
   if (!editingId && adminQuestions[id]) {
     toast(`ID "${id}" gia' esistente`, 'error'); return;
@@ -513,6 +554,7 @@ function saveQuestion() {
 
   const q = { id, text, timer, options };
   if (chess)         q.chess         = chess;
+  if (document.getElementById('field-bonfire').checked) q.bonfire = true;
   if (removeItem)    q.removeItem    = removeItem;
   if (removeItemMsg) q.removeItemMsg = removeItemMsg;
   adminQuestions[id] = q;
@@ -692,10 +734,11 @@ function renderGraph(resetView = true) {
         : opt.requiresItem
           ? (itemDefs[opt.requiresItem]?.emoji || '🔒') + ' ?' + opt.requiresItem
           : null;
+      const label = opt.hidden ? '👆 ' + opt.text : opt.text;
       if (opt.next && pos[opt.next]) {
-        edges.push({ from: id, to: opt.next, label: opt.text, type: opt.requiresItem ? 'locked' : 'correct', ci, ct, itemTag });
+        edges.push({ from: id, to: opt.next, label, type: opt.requiresItem ? 'locked' : 'correct', ci, ct, itemTag });
       } else if (!opt.next && winPos) {
-        edges.push({ from: id, to: '__WIN__', label: opt.text, type: 'win', ci, ct, itemTag });
+        edges.push({ from: id, to: '__WIN__', label, type: 'win', ci, ct, itemTag });
       }
     });
 
@@ -828,7 +871,7 @@ function renderGraph(resetView = true) {
     const bg     = isStart ? '#2d1800' : isOrphan ? '#1e1e10' : '#16213e';
     const border = isStart ? '#ffa502' : isOrphan ? '#665544' : '#2e3f6e';
     const bw     = isStart ? 2.5 : 1.5;
-    const label  = (q.chess ? '♟ ' : '') + q.text;
+    const label  = (q.bonfire ? '🔥 ' : '') + (q.chess ? '♟ ' : '') + q.text;
     const txt    = label.length > 30 ? label.substring(0, 28) + '…' : label;
     const idPillW = id.length * 8 + 16;
 
@@ -841,17 +884,17 @@ function renderGraph(resetView = true) {
     s.push(`  <text x="16" y="22" font-size="11.5" font-weight="bold" fill="${isStart ? '#1a1a1a' : '#7ec8e3'}" font-family="'Fredoka One',Nunito,sans-serif">${escHtml(id)}</text>`);
     s.push(`  <text x="${NW - 9}" y="21" text-anchor="end" font-size="10" fill="#555" font-family="Nunito,sans-serif">${q.timer}s</text>`);
     s.push(`  <text x="${NW / 2}" y="50" text-anchor="middle" font-size="11" fill="#bbb" font-family="Nunito,sans-serif">${escHtml(txt)}</text>`);
-    // Indicatori opzioni (1–4): verde=corretta, viola=segreta, rosso scuro=sbagliata
+    // Indicatori opzioni (1–4): verde=corretta, viola=segreta, rosso scuro=sbagliata, azzurro "?"=nascosta
     const circW = 13, circGap = 3;
     const totalCircW = q.options.length * circW + (q.options.length - 1) * circGap;
     const circStartX = Math.round((NW - totalCircW) / 2);
     const circY = NH - 16;
     q.options.forEach((o, oi) => {
       const ox = circStartX + oi * (circW + circGap);
-      const fill      = o.correct ? '#2ed573' : o.secretItem ? '#a060e0' : '#3a1010';
-      const textFill  = o.correct ? '#003a15' : o.secretItem ? '#e8d0ff' : '#884444';
+      const fill      = o.hidden ? '#7ec8e3' : o.correct ? '#2ed573' : o.secretItem ? '#a060e0' : '#3a1010';
+      const textFill  = o.hidden ? '#0a2a3a' : o.correct ? '#003a15' : o.secretItem ? '#e8d0ff' : '#884444';
       s.push(`  <rect x="${ox}" y="${circY}" width="${circW}" height="${circW}" rx="3" fill="${fill}"/>`);
-      s.push(`  <text x="${ox + circW/2}" y="${circY + 9}" text-anchor="middle" font-size="9" font-weight="bold" fill="${textFill}" font-family="Nunito,sans-serif">${oi + 1}</text>`);
+      s.push(`  <text x="${ox + circW/2}" y="${circY + 9}" text-anchor="middle" font-size="9" font-weight="bold" fill="${textFill}" font-family="Nunito,sans-serif">${o.hidden ? '?' : oi + 1}</text>`);
     });
     if (isStart) s.push(`  <text x="9" y="${NH - 4}" font-size="9" fill="#ffa502" font-family="Nunito,sans-serif">★ START</text>`);
 
