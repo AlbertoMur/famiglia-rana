@@ -8,7 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Permanent+Marker&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="style.css?v=456631ca" />
 </head>
 <body>
 
@@ -63,6 +64,23 @@
 
     <!-- Toast per opzioni bloccate -->
     <div id="game-toast"></div>
+
+    <!-- Minigioco palle di neve (copre la domanda quando è attivo) -->
+    <div id="snowball-stage">
+      <canvas id="snowball-canvas"></canvas>
+      <div class="sb-hud">
+        <div class="sb-bar me">
+          <span class="sb-avatar">TU</span>
+          <div class="sb-track"><div class="sb-fill" id="sb-hp-0"></div></div>
+        </div>
+        <div class="sb-bar foe">
+          <span class="sb-avatar">VS</span>
+          <div class="sb-track"><div class="sb-fill" id="sb-hp-1"></div></div>
+        </div>
+      </div>
+      <p class="sb-question" id="sb-question"></p>
+      <p class="sb-turn" id="sb-turn"></p>
+    </div>
 
     <div id="game-wrapper" class="game-wrapper">
 
@@ -125,9 +143,15 @@
 
   <!-- In locale c'è questions.js (in chiaro); online solo questions.enc.js (cifrato) -->
   <script src="questions.js"></script>
-  <script src="questions.enc.js"></script>
+  <script src="questions.enc.js?v=8c4175cb"></script>
   <!-- Regole degli scacchi per le domande "♟ Scacchi" -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-  <script src="game.js"></script>
+  <script src="game.js?v=bf1ce5f9"></script>
+  <script src="snowball.js?v=59f93fdd"></script>
+  <script src="order.js?v=0de817fd"></script>
+  <!-- Mappe per le domande "🗺️ Dove eravamo?" -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="map.js?v=17d15958"></script>
+  <script src="yatzy.js?v=246113ec"></script>
 </body>
 </html>

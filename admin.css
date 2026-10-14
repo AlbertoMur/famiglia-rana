@@ -179,6 +179,17 @@ header .badge {
   gap: 14px;
 }
 
+/* ── Avviso admin aperto come file ──── */
+
+.file-warning {
+  background: #5a3a00;
+  border-bottom: 2px solid #ffa502;
+  color: #ffe0a8;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 /* ── Falò ───────────────────────────── */
 
 .bonfire-toggle {
@@ -217,6 +228,36 @@ header .badge {
   padding: 12px 14px 2px;
   margin-bottom: 14px;
   background: rgba(46, 213, 115, 0.05);
+}
+
+.admin-map {
+  height: 340px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  cursor: crosshair;
+}
+.admin-map .leaflet-grab { cursor: crosshair; }
+
+.admin-map-pin {
+  font-size: 24px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.order-route {
+  border-top: 1px dashed #4a5a7a;
+  padding-top: 10px;
+  margin-bottom: 4px;
+}
+.order-route-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+.order-route-title span {
+  font-weight: 400;
+  color: var(--text-dim);
 }
 
 .chess-note {

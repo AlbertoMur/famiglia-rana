@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — Bad News Quiz</title>
-  <link rel="stylesheet" href="admin.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <link rel="stylesheet" href="admin.css?v=b28c1be7" />
 </head>
 <body>
 
@@ -84,15 +85,62 @@
 
         <div class="chess-block">
           <div class="form-group">
-            <label for="field-chess">♟ Scacchi</label>
+            <label for="field-chess">🎮 Minigioco</label>
             <select id="field-chess">
-              <option value="">— Domanda normale (con opzioni) —</option>
+              <option value="">— Nessuno (domanda normale con opzioni) —</option>
             </select>
           </div>
           <div id="chess-fields" style="display:none;">
-            <div class="form-row">
+            <!-- Metti in ordine: una strada per ogni ordine valido -->
+            <div id="order-routes"></div>
+
+            <!-- Yatzy: punteggio da raggiungere -->
+            <div id="yatzy-config" style="display:none;">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="field-yatzy-target">Punteggio da raggiungere</label>
+                  <input type="number" id="field-yatzy-target" min="50" max="300" step="5" value="140" />
+                </div>
+                <div class="form-group">
+                  <label>Probabilità di farcela</label>
+                  <span class="chess-note" id="yatzy-odds"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dove eravamo?: punto giusto, tolleranza, vista di partenza -->
+            <div id="map-config" style="display:none;">
               <div class="form-group">
-                <label for="field-chess-next">Se risolto vai a</label>
+                <label for="field-map-coords">Punto giusto: clicca sulla mappa oppure incolla le coordinate</label>
+                <input type="text" id="field-map-coords" placeholder="es. 45.4642, 9.1900 — su Google Maps: tasto destro sul punto, poi clic sulle coordinate per copiarle" />
+              </div>
+              <div id="admin-map" class="admin-map"></div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="field-map-radius">Tolleranza</label>
+                  <select id="field-map-radius">
+                    <option value="100">100 m (stessa via)</option>
+                    <option value="300">300 m (stesso isolato)</option>
+                    <option value="1000">1 km (stesso quartiere)</option>
+                    <option value="5000">5 km (stessa città)</option>
+                    <option value="20000">20 km (stessa zona)</option>
+                    <option value="100000">100 km (stessa regione)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Vista di partenza del giocatore</label>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btn-map-view">📌 Usa la vista attuale della mappa</button>
+                  <span class="chess-note" id="map-view-info"></span>
+                </div>
+              </div>
+              <label class="bonfire-toggle">
+                <input type="checkbox" id="field-map-hide" />
+                <span>🙈 Non mostrare la soluzione se sbaglia (niente punto giusto né distanza)</span>
+              </label>
+            </div>
+            <div class="form-row" id="minigame-single">
+              <div class="form-group">
+                <label for="field-chess-next">Se vinto vai a</label>
                 <select id="field-chess-next"></select>
               </div>
               <div class="form-group">
@@ -100,7 +148,7 @@
                 <input type="text" id="field-chess-grants" placeholder="ID oggetto (es. chiave)" />
               </div>
             </div>
-            <p class="chess-note">Il giocatore muove i pezzi sulla scacchiera: una mossa sbagliata è game over.</p>
+            <p class="chess-note" id="minigame-note"></p>
           </div>
         </div>
 
@@ -195,7 +243,9 @@
   <div id="toast"></div>
 
   <script src="questions.js"></script>
-  <script src="chess-puzzles.js"></script>
-  <script src="admin.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="order-presets.js?v=f175e1a9"></script>
+  <script src="chess-puzzles.js?v=131c80e4"></script>
+  <script src="admin.js?v=395ef36f"></script>
 </body>
 </html>

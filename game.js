@@ -102,6 +102,11 @@ let gameItems         = typeof ITEMS          !== 'undefined' ? ITEMS          :
   } catch (e) { /* fallback silenzioso */ }
 })();
 
+// Modalità test: index.html?test (pannello per saltare tra le domande)
+// oppure index.html?test=q5 (parte subito da q5). Durante i test non si salva niente.
+const TEST_PARAM = new URLSearchParams(location.search).get('test');
+const testMode   = TEST_PARAM !== null;
+
 // ─── Sblocco con password (questions.enc.js) ─────────────────────────────────
 
 const UNLOCK_KEY = 'badnews_unlock';
@@ -157,7 +162,7 @@ function initLockScreen() {
   try { saved = localStorage.getItem(UNLOCK_KEY); } catch (e) {}
   if (saved) {
     decryptGameData(saved)
-      .then(() => showScreen('screen-title'))
+      .then(onGameDataReady)
       .catch(() => { try { localStorage.removeItem(UNLOCK_KEY); } catch (e) {} });
   }
 
@@ -169,7 +174,7 @@ function initLockScreen() {
       await decryptGameData(input.value);
       try { localStorage.setItem(UNLOCK_KEY, input.value); } catch (e) {}
       playCorrect();
-      showScreen('screen-title');
+      onGameDataReady();
     } catch (err) {
       playWrong();
       error.textContent = 'Nope. Riprova 😏';
@@ -190,6 +195,7 @@ const COLLECTION_KEY = 'badnews_collection';
 let persistentCollection = {};
 
 function loadCollection() {
+  if (testMode) return; // in test si parte puliti
   try {
     const raw = localStorage.getItem(COLLECTION_KEY);
     if (raw) persistentCollection = JSON.parse(raw);
@@ -197,12 +203,13 @@ function loadCollection() {
 }
 
 function saveCollection() {
-  localStorage.setItem(COLLECTION_KEY, JSON.stringify(persistentCollection));
+  if (testMode) return;
+  try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(persistentCollection)); } catch (e) {}
 }
 
 function resetCollection() {
   persistentCollection = {};
-  localStorage.removeItem(COLLECTION_KEY);
+  if (!testMode) { try { localStorage.removeItem(COLLECTION_KEY); } catch (e) {} }
   renderTitleCollection();
 }
 
@@ -307,7 +314,9 @@ function showScreen(id) {
 const CHECKPOINT_KEY = 'badnews_checkpoint';
 let checkpoint = null;
 
-try { checkpoint = JSON.parse(localStorage.getItem(CHECKPOINT_KEY)); } catch (e) { checkpoint = null; }
+if (!testMode) {
+  try { checkpoint = JSON.parse(localStorage.getItem(CHECKPOINT_KEY)); } catch (e) { checkpoint = null; }
+}
 
 function validCheckpoint() {
   // Le domande potrebbero essere cambiate dopo un aggiornamento
@@ -320,12 +329,91 @@ function saveCheckpoint(questionId) {
     inventory: inventory.map(i => ({ ...i })),
     questionCount: questionCount - 1 // loadQuestion lo incrementa di nuovo
   };
-  try { localStorage.setItem(CHECKPOINT_KEY, JSON.stringify(checkpoint)); } catch (e) {}
+  if (!testMode) { try { localStorage.setItem(CHECKPOINT_KEY, JSON.stringify(checkpoint)); } catch (e) {} }
 }
 
 function clearCheckpoint() {
   checkpoint = null;
-  try { localStorage.removeItem(CHECKPOINT_KEY); } catch (e) {}
+  if (!testMode) { try { localStorage.removeItem(CHECKPOINT_KEY); } catch (e) {} }
+}
+
+// ─── Modalità test ───────────────────────────────────────────────────────────
+
+// Domande pronte (subito, oppure dopo la password)
+function onGameDataReady() {
+  showScreen('screen-title');
+  if (testMode) initTestMode();
+}
+
+function initTestMode() {
+  if (document.getElementById('test-toggle')) return;
+
+  const toggle = document.createElement('button');
+  toggle.id = 'test-toggle';
+  toggle.type = 'button';
+  toggle.textContent = '🧪 TEST';
+
+  const panel = document.createElement('div');
+  panel.id = 'test-panel';
+  panel.hidden = true;
+  panel.innerHTML = `
+    <p class="test-title">🧪 Modalità test <small>— non viene salvato niente</small></p>
+    <label class="test-label" for="test-question">Vai alla domanda</label>
+    <select id="test-question"></select>
+    <button type="button" class="test-go" id="test-go">▶ Vai</button>
+    <p class="test-label">Oggetti in tasca</p>
+    <div id="test-items"></div>
+  `;
+  document.body.append(toggle, panel);
+
+  toggle.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) refreshTestPanel();
+  });
+  document.getElementById('test-go').addEventListener('click', () => {
+    panel.hidden = true;
+    startTestAt(document.getElementById('test-question').value);
+  });
+
+  if (TEST_PARAM && gameQuestions && gameQuestions[TEST_PARAM]) startTestAt(TEST_PARAM);
+}
+
+function refreshTestPanel() {
+  const sel = document.getElementById('test-question');
+  sel.innerHTML = '';
+  Object.entries(gameQuestions || {}).forEach(([id, q]) => {
+    const tags = (q.bonfire ? '🔥' : '') + (q.chess ? '♟' : '') + (q.snowball ? '⛄' : '');
+    const label = `${id} ${tags} — ${q.text.length > 38 ? q.text.slice(0, 36) + '…' : q.text}`;
+    sel.appendChild(new Option(label, id, false, id === currentQuestionId));
+  });
+
+  const box = document.getElementById('test-items');
+  box.innerHTML = '';
+  Object.values(gameItems || {}).forEach(item => {
+    const row = document.createElement('label');
+    row.className = 'test-item';
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = hasItem(item.id);
+    check.addEventListener('change', () => {
+      // Aggiunge/toglie in silenzio: vale dalla prossima domanda caricata (o con "Vai")
+      if (check.checked) { if (!hasItem(item.id)) inventory.push({ ...item }); }
+      else inventory = inventory.filter(i => i.id !== item.id);
+      updateInventoryUI();
+    });
+    row.append(check, ` ${item.emoji} ${item.name}`);
+    box.appendChild(row);
+  });
+}
+
+function startTestAt(id) {
+  if (!gameQuestions || !gameQuestions[id]) return;
+  getAudioCtx();
+  clearTimer();
+  questionCount = 0;
+  currentQuestionId = id; // serve a timer, jolly e pannello
+  gameActive = true;
+  loadQuestion(id);
 }
 
 function updateCheckpointButtons() {
@@ -363,6 +451,7 @@ function showNotice(msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
   if (needsUnlock()) initLockScreen();
+  else if (testMode) initTestMode();
   renderTitleCollection();
   updateCheckpointButtons();
 
@@ -416,6 +505,9 @@ function startGame(fromCheckpoint = false) {
 function loadQuestion(id) {
   const q = gameQuestions[id];
   if (!q) { console.error('Domanda non trovata:', id); return; }
+  if (typeof stopSnowball === 'function') stopSnowball();
+  if (typeof destroyMapGame === 'function') destroyMapGame();
+  if (typeof destroyYatzy === 'function') destroyYatzy();
   showScreen('screen-game');
   questionCount++;
 
@@ -427,7 +519,25 @@ function loadQuestion(id) {
   if (counter) counter.textContent = 'Domanda ' + questionCount + (checkpoint ? ' · 🔥' : '');
 
   if (q.removeItem) consumeItem(q.removeItem, q.removeItemMsg || null);
+
+  // Minigioco palle di neve: niente timer, parte dopo l'eventuale schermata del falò
+  if (q.snowball) {
+    clearTimer();
+    startSnowball(q, newlyLit);
+    if (newlyLit) showBonfireLit(snowballBegin);
+    return;
+  }
+
   renderQuestion(q);
+
+  // Yatzy: niente timer, una partita dura qualche minuto
+  const timed = !q.yatzy;
+  document.getElementById('game-wrapper').classList.toggle('no-timer', !timed);
+  if (!timed) {
+    clearTimer();
+    if (newlyLit) showBonfireLit(() => {});
+    return;
+  }
 
   if (newlyLit) showBonfireLit(() => { if (gameActive) startTimer(q.timer); });
   else startTimer(q.timer);
@@ -446,6 +556,24 @@ function renderQuestion(q) {
 
   if (q.chess) {
     renderChessPuzzle(q);
+    renderJollyButton(q);
+    return;
+  }
+
+  if (q.ordering) {
+    renderOrderGame(q);
+    renderJollyButton(q);
+    return;
+  }
+
+  if (q.map) {
+    renderMapGame(q);
+    renderJollyButton(q);
+    return;
+  }
+
+  if (q.yatzy) {
+    renderYatzyGame(q);
     renderJollyButton(q);
     return;
   }
@@ -906,9 +1034,39 @@ const CHESS_MESSAGES = [
   'Scacco matto… ma a te.'
 ];
 
+const SNOWBALL_MESSAGES = [
+  'Pupazzo di neve: 1. Tu: 0.',
+  'Colpito e affondato. Serve più allenamento.',
+  'Hai preso più palle di neve che decisioni giuste.'
+];
+
+const ORDER_MESSAGES = [
+  'I gusti non si discutono. Questo ordine sì.',
+  'Ordine sbagliato. Lo chef è offeso.',
+  'Nemmeno a una cena di gala sbaglierebbero così.'
+];
+
+const MAP_MESSAGES = [
+  'Fuori strada. Di parecchio.',
+  'Eppure c\'eri anche tu!',
+  'Il navigatore ricalcola il percorso… dall\'inizio.'
+];
+
+const YATZY_MESSAGES = [
+  'I dadi non mentono. Purtroppo.',
+  'Hai lanciato tanto e segnato poco.',
+  'La fortuna è cieca, ma la sfortuna ci vede benissimo.'
+];
+
 function showGameOver(reason) {
-  const pool = reason === 'timeout' ? TIMEOUT_MESSAGES
-             : reason === 'chess'   ? CHESS_MESSAGES
+  if (typeof stopSnowball === 'function') stopSnowball();
+  if (typeof destroyYatzy === 'function') destroyYatzy();
+  const pool = reason === 'timeout'  ? TIMEOUT_MESSAGES
+             : reason === 'chess'    ? CHESS_MESSAGES
+             : reason === 'snowball' ? SNOWBALL_MESSAGES
+             : reason === 'order'    ? ORDER_MESSAGES
+             : reason === 'map'      ? MAP_MESSAGES
+             : reason === 'yatzy'    ? YATZY_MESSAGES
              : GAMEOVER_MESSAGES;
   const msg = document.getElementById('gameover-message');
   if (msg) msg.textContent = pool[Math.floor(Math.random() * pool.length)];
@@ -917,6 +1075,7 @@ function showGameOver(reason) {
 }
 
 function showWin() {
+  if (typeof stopSnowball === 'function') stopSnowball();
   clearCheckpoint(); // partita finita: il falò si spegne
   playVictory();
   // Personalizza messaggio vittoria se si ha la lettera segreta

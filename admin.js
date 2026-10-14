@@ -16,11 +16,27 @@ const STORAGE_LAYOUT = 'badnews_admin_layout';
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  showFileProtocolWarning();
   loadFromStorage();
   renderChessSelect();
   bindEvents();
   renderAll();
 });
+
+// Aperto come file dal disco le mappe OpenStreetMap vengono rifiutate: va usato admin.bat.
+// Il browser tiene dati separati per file e per http://127.0.0.1, quindi per passare
+// si esporta prima qui: l'admin nuovo, partendo vuoto, carica questions.js.
+function showFileProtocolWarning() {
+  if (location.protocol !== 'file:') return;
+  const bar = document.createElement('div');
+  bar.className = 'file-warning';
+  bar.innerHTML = `
+    ⚠️ <strong>Admin aperto come file:</strong> le mappe di "Dove eravamo?" non funzionano.
+    Per passare all'admin nuovo: <strong>1)</strong> premi <em>Esporta questions.js</em> qui,
+    <strong>2)</strong> chiudi questa scheda, <strong>3)</strong> fai doppio clic su <em>admin.bat</em>.
+  `;
+  document.body.prepend(bar);
+}
 
 function loadFromStorage() {
   try {
@@ -44,8 +60,10 @@ function loadFromStorage() {
       });
     }
 
+    // Posizioni del grafo: memoria del browser, altrimenti quelle salvate nell'export
     const rawLayout = localStorage.getItem(STORAGE_LAYOUT);
     if (rawLayout) nodeDragPositions = JSON.parse(rawLayout);
+    else if (typeof LAYOUT !== 'undefined' && LAYOUT) nodeDragPositions = { ...LAYOUT };
   } catch (e) {
     console.error('Errore caricamento dati:', e);
     adminQuestions = {};
@@ -197,6 +215,8 @@ function bindEvents() {
   document.getElementById('btn-add-option').addEventListener('click', addOptionRow);
   document.getElementById('field-chess').addEventListener('change', toggleChessFields);
   document.getElementById('field-hidden-word').addEventListener('input', toggleHiddenFields);
+  bindMapEvents();
+  document.getElementById('field-yatzy-target').addEventListener('input', updateYatzyOdds);
   document.getElementById('btn-refresh-graph').addEventListener('click', () => renderGraph(true));
   document.getElementById('btn-fit-graph').addEventListener('click', graphFitView);
   document.getElementById('btn-reset-layout').addEventListener('click', resetLayout);
@@ -254,12 +274,21 @@ function renderQuestionList() {
             ${q.bonfire ? '<span>🔥 Falò</span>' : ''}
             ${q.chess
               ? `<span>♟ ${escHtml(q.chess.name)}</span>`
+              : q.snowball
+              ? `<span>⛄ Palle di neve — ${escHtml(SNOWBALL_LEVELS[q.snowball.difficulty] || q.snowball.difficulty)}</span>`
+              : q.ordering
+              ? `<span>📋 ${escHtml(q.ordering.name)} — ${q.options.length} strade</span>`
+              : q.map
+              ? `<span>🗺️ Dove eravamo? — tolleranza ${formatRadius(q.map.radius)}${q.map.hideAnswer ? ' · 🙈 soluzione nascosta' : ''}</span>`
+              : q.yatzy
+              ? `<span>🎲 Yatzy — obiettivo ${q.yatzy.target}</span>`
               : `<span>✓ ${correctCount} corretta/e</span>
             <span>⊞ ${q.options.filter(o => !o.hidden).length} opzioni</span>`}
             ${q.options.some(o => o.hidden) ? '<span>👆 nascosta</span>' : ''}
           </div>
         </div>
         <div class="question-card-actions">
+          <button class="btn btn-ghost btn-sm" onclick="testQuestion('${escHtml(id)}')" title="Apre il gioco direttamente su questa domanda (modalità test)">▶ Prova</button>
           <button class="btn btn-blue btn-sm" onclick="editQuestion('${escHtml(id)}')">Modifica</button>
           <button class="btn btn-danger btn-sm" onclick="deleteQuestion('${escHtml(id)}')">Elimina</button>
         </div>
@@ -308,14 +337,88 @@ function editQuestion(id) {
 
 // ─── Blocco scacchi ───────────────────────────────────────────────────────────
 
+// Il blocco (nato per gli scacchi, id "field-chess") ora gestisce tutti i minigiochi:
+// valori "<id puzzle>" per gli scacchi, "snowball:<livello>" per le palle di neve.
+
+const SNOWBALL_LEVELS = { facile: 'Facile', normale: 'Normale', difficile: 'Difficile' };
+
 function renderChessSelect() {
-  if (typeof CHESS_PUZZLES === 'undefined') return;
   const sel = document.getElementById('field-chess');
-  Object.entries(CHESS_PUZZLES).forEach(([id, p]) => {
-    const o = document.createElement('option');
-    o.value = id;
-    o.textContent = p.name;
-    sel.appendChild(o);
+
+  if (typeof CHESS_PUZZLES !== 'undefined') {
+    const group = document.createElement('optgroup');
+    group.label = '♟ Scacchi';
+    Object.entries(CHESS_PUZZLES).forEach(([id, p]) => group.appendChild(new Option(p.name, id)));
+    sel.appendChild(group);
+  }
+
+  const snow = document.createElement('optgroup');
+  snow.label = '⛄ Palle di neve';
+  Object.entries(SNOWBALL_LEVELS).forEach(([lvl, name]) => snow.appendChild(new Option('Palle di neve — ' + name, 'snowball:' + lvl)));
+  sel.appendChild(snow);
+
+  const dice = document.createElement('optgroup');
+  dice.label = '🎲 Yatzy';
+  dice.appendChild(new Option('Yatzy — batti un punteggio', 'yatzy'));
+  sel.appendChild(dice);
+
+  const geo = document.createElement('optgroup');
+  geo.label = '🗺️ Dove eravamo?';
+  geo.appendChild(new Option('Dove eravamo? — punto sulla mappa', 'map'));
+  sel.appendChild(geo);
+
+  if (typeof ORDER_PRESETS !== 'undefined') {
+    const ord = document.createElement('optgroup');
+    ord.label = '📋 Metti in ordine';
+    Object.entries(ORDER_PRESETS).forEach(([key, p]) => ord.appendChild(new Option('Metti in ordine — ' + p.name, 'order:' + key)));
+    sel.appendChild(ord);
+  }
+}
+
+// Lista "Metti in ordine": dalla libreria, oppure ricostruita dalla domanda salvata
+function getOrderPreset(key, q) {
+  if (typeof ORDER_PRESETS !== 'undefined' && ORDER_PRESETS[key]) return ORDER_PRESETS[key];
+  if (q && q.ordering && q.ordering.id === key) {
+    const orders = {};
+    q.options.filter(o => o.orderKey).forEach(o => {
+      orders[o.orderKey] = { label: o.text.replace(/^📋\s*/, ''), items: o.order };
+    });
+    return { name: q.ordering.name, hint: q.ordering.hint, orders };
+  }
+  return null;
+}
+
+// Una riga "ordine → vai a / oggetto" per ogni ordine valido
+function renderOrderRoutes(key, q) {
+  const box = document.getElementById('order-routes');
+  box.innerHTML = '';
+  const preset = key ? getOrderPreset(key, q) : null;
+  if (!preset) return;
+
+  Object.entries(preset.orders).forEach(([orderKey, o]) => {
+    const saved = q && q.ordering && q.ordering.id === key
+      ? (q.options.find(opt => opt.orderKey === orderKey) || {})
+      : {};
+    const row = document.createElement('div');
+    row.className = 'order-route';
+    row.dataset.orderKey = orderKey;
+    row.innerHTML = `
+      <p class="order-route-title">📋 ${escHtml(o.label)}: <span>${o.items.map(escHtml).join(' › ')}</span></p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Se ordina così vai a</label>
+          <select class="order-next">
+            <option value="">— Nessuna (vittoria) —</option>
+            ${getQuestionOptions(saved.next || '')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Concede oggetto (opzionale)</label>
+          <input type="text" class="order-grants" placeholder="ID oggetto" value="${escHtml(saved.grantsItem || '')}" />
+        </div>
+      </div>
+    `;
+    box.appendChild(row);
   });
 }
 
@@ -324,14 +427,24 @@ function setChessFields(q) {
   const chess = q && q.chess;
   // Puzzle salvato ma non più in libreria: lo aggiungo al menu per non perderlo
   if (chess && !Array.from(sel.options).some(o => o.value === chess.id)) {
-    const o = document.createElement('option');
-    o.value = chess.id;
-    o.textContent = chess.name;
-    sel.appendChild(o);
+    sel.appendChild(new Option(chess.name, chess.id));
   }
-  sel.value = chess ? chess.id : '';
+  // Lista "Metti in ordine" salvata ma non più in libreria: la aggiungo al menu
+  if (q && q.ordering && !Array.from(sel.options).some(o => o.value === 'order:' + q.ordering.id)) {
+    sel.appendChild(new Option('Metti in ordine — ' + q.ordering.name, 'order:' + q.ordering.id));
+  }
+  sel.value = chess ? chess.id
+            : (q && q.snowball) ? 'snowball:' + q.snowball.difficulty
+            : (q && q.ordering) ? 'order:' + q.ordering.id
+            : (q && q.map) ? 'map'
+            : (q && q.yatzy) ? 'yatzy'
+            : '';
 
-  const solved = chess ? (q.options.find(o => o.correct) || {}) : {};
+  setMapDraft(q && q.map ? q.map : null);
+  document.getElementById('field-yatzy-target').value = q && q.yatzy ? q.yatzy.target : 140;
+  updateYatzyOdds();
+
+  const solved = (chess || (q && (q.snowball || q.map || q.yatzy))) ? (q.options.find(o => o.correct) || {}) : {};
   document.getElementById('field-chess-next').innerHTML =
     '<option value="">— Nessuna (vittoria) —</option>' + getQuestionOptions(solved.next || '');
   document.getElementById('field-chess-grants').value = solved.grantsItem || '';
@@ -339,10 +452,148 @@ function setChessFields(q) {
 }
 
 function toggleChessFields() {
-  const on = !!document.getElementById('field-chess').value;
+  const value = document.getElementById('field-chess').value;
+  const on = !!value;
   document.getElementById('chess-fields').style.display    = on ? 'block' : 'none';
   document.getElementById('options-section').style.display = on ? 'none'  : 'block';
   document.getElementById('hidden-block').style.display    = on ? 'none'  : 'block';
+
+  const isOrder = value.startsWith('order:');
+  document.getElementById('minigame-single').style.display = isOrder ? 'none' : '';
+  renderOrderRoutes(isOrder ? value.slice('order:'.length) : '', editingId ? adminQuestions[editingId] : null);
+
+  const isMap = value === 'map';
+  document.getElementById('map-config').style.display = isMap ? 'block' : 'none';
+  if (isMap) showAdminMap();
+
+  document.getElementById('yatzy-config').style.display = value === 'yatzy' ? 'block' : 'none';
+
+  document.getElementById('minigame-note').textContent =
+      value.startsWith('snowball:') ? 'Duello a turni contro il computer: chi finisce l\'energia perde. Se perde è game over. Il timer non conta.'
+    : value === 'yatzy' ? 'Partita a Yatzy da soli: appena si raggiunge il punteggio si vince; se diventa impossibile raggiungerlo è game over. Il timer non conta.'
+    : isMap ? 'Il giocatore tocca la mappa e conferma: entro la tolleranza prosegue, altrimenti è game over (e vede dov\'era il punto). Il timer conta.'
+    : isOrder ? 'Il giocatore trascina gli elementi e conferma: ogni ordine valido porta alla sua strada, qualsiasi altro ordine è game over. Il timer conta: meglio alzarlo (es. 120s).'
+    : 'Il giocatore muove i pezzi sulla scacchiera: una mossa sbagliata è game over.';
+}
+
+// ─── Yatzy: probabilità di raggiungere l'obiettivo ───────────────────────────
+// Da 20.000 partite simulate con una strategia ragionevole (punteggio medio ~151)
+
+const YATZY_ODDS = [[80, 99], [90, 97], [100, 93], [110, 87], [120, 80], [130, 72], [140, 63], [150, 52],
+                    [160, 39], [170, 27], [180, 20], [190, 16], [200, 12], [220, 3], [240, 0]];
+
+function yatzyOdds(target) {
+  if (target <= YATZY_ODDS[0][0]) return YATZY_ODDS[0][1];
+  for (let i = 1; i < YATZY_ODDS.length; i++) {
+    const [t1, p1] = YATZY_ODDS[i - 1], [t2, p2] = YATZY_ODDS[i];
+    if (target <= t2) return Math.round(p1 + (p2 - p1) * (target - t1) / (t2 - t1));
+  }
+  return 0;
+}
+
+function updateYatzyOdds() {
+  const t = parseInt(document.getElementById('field-yatzy-target').value, 10) || 0;
+  const p = yatzyOdds(t);
+  const level = p >= 80 ? 'facile' : p >= 50 ? 'normale' : p >= 20 ? 'difficile' : 'quasi impossibile';
+  document.getElementById('yatzy-odds').textContent = `circa ${p}% delle partite (${level}) — consigliati: 110 facile, 140 normale, 170 difficile`;
+}
+
+// ─── Mappa "Dove eravamo?" ────────────────────────────────────────────────────
+// Stesse mappe del gioco (OpenStreetMap). Il punto giusto si sceglie
+// cliccando sulla mappa o incollando le coordinate da Google Maps.
+
+const MAP_DEFAULT_VIEW = { viewLat: 41.9, viewLng: 12.5, viewZoom: 5 }; // Italia
+const MAP_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MAP_ATTRIBUTION = '&copy; OpenStreetMap';
+
+let mapDraft = null;   // { lat, lng, radius, viewLat, viewLng, viewZoom }
+let adminMap = null, adminMarker = null, adminCircle = null;
+
+function formatRadius(m) {
+  return m < 1000 ? m + ' m' : (m / 1000) + ' km';
+}
+
+function setMapDraft(map) {
+  mapDraft = map
+    ? { ...map }
+    : { lat: null, lng: null, radius: 1000, ...MAP_DEFAULT_VIEW };
+  document.getElementById('field-map-coords').value =
+    mapDraft.lat === null ? '' : `${mapDraft.lat.toFixed(5)}, ${mapDraft.lng.toFixed(5)}`;
+  document.getElementById('field-map-radius').value = String(mapDraft.radius);
+  document.getElementById('field-map-hide').checked = !!mapDraft.hideAnswer;
+  updateMapViewInfo();
+}
+
+function updateMapViewInfo() {
+  document.getElementById('map-view-info').textContent =
+    `Partenza: ${mapDraft.viewLat.toFixed(3)}, ${mapDraft.viewLng.toFixed(3)} · zoom ${mapDraft.viewZoom}`;
+}
+
+function showAdminMap() {
+  if (typeof L === 'undefined') {
+    document.getElementById('admin-map').textContent = 'Mappa non disponibile: serve la connessione.';
+    return;
+  }
+  if (!adminMap) {
+    adminMap = L.map('admin-map', { zoomSnap: 0.5 });
+    L.tileLayer(MAP_TILES, { attribution: MAP_ATTRIBUTION, maxZoom: 19 }).addTo(adminMap);
+    adminMap.on('click', e => setMapPoint(e.latlng.lat, e.latlng.lng));
+  }
+  // Il contenitore era nascosto: Leaflet deve rimisurarlo
+  setTimeout(() => {
+    adminMap.invalidateSize();
+    if (mapDraft.lat !== null) adminMap.setView([mapDraft.lat, mapDraft.lng], Math.max(mapDraft.viewZoom, 13));
+    else adminMap.setView([mapDraft.viewLat, mapDraft.viewLng], mapDraft.viewZoom);
+    drawAdminPoint();
+  }, 0);
+}
+
+function drawAdminPoint() {
+  if (!adminMap) return;
+  if (adminMarker) { adminMarker.remove(); adminMarker = null; }
+  if (adminCircle) { adminCircle.remove(); adminCircle = null; }
+  if (mapDraft.lat === null) return;
+  const p = [mapDraft.lat, mapDraft.lng];
+  adminCircle = L.circle(p, { radius: mapDraft.radius, color: '#ff6b35', weight: 2, fillOpacity: 0.12 }).addTo(adminMap);
+  adminMarker = L.marker(p, {
+    icon: L.divIcon({ className: 'admin-map-pin', html: '❤️', iconSize: [28, 28], iconAnchor: [14, 14] }),
+    interactive: false
+  }).addTo(adminMap);
+}
+
+function setMapPoint(lat, lng) {
+  mapDraft.lat = lat;
+  mapDraft.lng = lng;
+  document.getElementById('field-map-coords').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  drawAdminPoint();
+}
+
+function bindMapEvents() {
+  // Coordinate incollate da Google Maps, es. "45.46421, 9.19005"
+  document.getElementById('field-map-coords').addEventListener('change', (e) => {
+    const m = e.target.value.match(/(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/);
+    if (!m) { toast('Coordinate non valide (es. 45.4642, 9.1900)', 'error'); return; }
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) { toast('Coordinate fuori scala', 'error'); return; }
+    setMapPoint(lat, lng);
+    if (adminMap) adminMap.setView([lat, lng], 14);
+  });
+  document.getElementById('field-map-radius').addEventListener('change', (e) => {
+    mapDraft.radius = parseInt(e.target.value, 10);
+    drawAdminPoint();
+  });
+  document.getElementById('field-map-hide').addEventListener('change', (e) => {
+    mapDraft.hideAnswer = e.target.checked;
+  });
+  document.getElementById('btn-map-view').addEventListener('click', () => {
+    if (!adminMap) return;
+    const c = adminMap.getCenter();
+    mapDraft.viewLat = c.lat;
+    mapDraft.viewLng = c.lng;
+    mapDraft.viewZoom = adminMap.getZoom();
+    updateMapViewInfo();
+    toast('Vista di partenza salvata', 'success');
+  });
 }
 
 // ─── Blocco risposta nascosta ─────────────────────────────────────────────────
@@ -480,19 +731,50 @@ function saveQuestion() {
   if (!text) { toast('Testo domanda obbligatorio', 'error'); return; }
   if (!timer || timer < 1) { toast('Timer non valido', 'error'); return; }
 
-  const chessId = document.getElementById('field-chess').value;
+  const chessId = document.getElementById('field-chess').value; // minigioco scelto (vedi renderChessSelect)
   let chess = null;
+  let snowball = null;
+  let ordering = null;
+  let mapData = null;
+  let yatzy = null;
   const options = [];
   let hasCorrect = false;
 
-  if (chessId) {
-    // Domanda scacchi: un'unica opzione "corretta" che rappresenta il puzzle risolto
-    const prev = editingId && adminQuestions[editingId] && adminQuestions[editingId].chess;
-    const puzzle = (typeof CHESS_PUZZLES !== 'undefined' && CHESS_PUZZLES[chessId]) || (prev && prev.id === chessId ? prev : null);
-    if (!puzzle) { toast('Puzzle non trovato', 'error'); return; }
-    chess = { id: chessId, name: puzzle.name, fen: puzzle.fen, moves: [...puzzle.moves] };
+  if (chessId.startsWith('order:')) {
+    // Metti in ordine: un'opzione "corretta" per ogni ordine valido, ognuna con la sua strada
+    const key = chessId.slice('order:'.length);
+    const preset = getOrderPreset(key, editingId ? adminQuestions[editingId] : null);
+    if (!preset) { toast('Lista non trovata', 'error'); return; }
+    ordering = { id: key, name: preset.name, hint: preset.hint || '' };
+    document.querySelectorAll('#order-routes .order-route').forEach(row => {
+      const o = preset.orders[row.dataset.orderKey];
+      const opt = { text: '📋 ' + o.label, correct: true, orderKey: row.dataset.orderKey, order: [...o.items] };
+      const next   = row.querySelector('.order-next').value;
+      const grants = row.querySelector('.order-grants').value.trim();
+      if (next)   opt.next = next;
+      if (grants) opt.grantsItem = grants;
+      options.push(opt);
+    });
+    hasCorrect = options.length > 0;
+  } else if (chessId) {
+    // Minigioco: un'unica opzione "corretta" che rappresenta la vittoria
+    if (chessId.startsWith('snowball:')) {
+      snowball = { difficulty: chessId.slice('snowball:'.length) };
+    } else if (chessId === 'map') {
+      if (mapDraft.lat === null) { toast('Clicca sulla mappa il punto giusto', 'error'); return; }
+      mapData = { ...mapDraft };
+    } else if (chessId === 'yatzy') {
+      const target = parseInt(document.getElementById('field-yatzy-target').value, 10);
+      if (!target || target < 1) { toast('Punteggio da raggiungere non valido', 'error'); return; }
+      yatzy = { target };
+    } else {
+      const prev = editingId && adminQuestions[editingId] && adminQuestions[editingId].chess;
+      const puzzle = (typeof CHESS_PUZZLES !== 'undefined' && CHESS_PUZZLES[chessId]) || (prev && prev.id === chessId ? prev : null);
+      if (!puzzle) { toast('Puzzle non trovato', 'error'); return; }
+      chess = { id: chessId, name: puzzle.name, fen: puzzle.fen, moves: [...puzzle.moves] };
+    }
 
-    const opt = { text: '♟ Puzzle risolto', correct: true };
+    const opt = { text: snowball ? '⛄ Sfida vinta' : mapData ? '🗺️ Trovato' : yatzy ? '🎲 Obiettivo raggiunto' : '♟ Puzzle risolto', correct: true };
     const next   = document.getElementById('field-chess-next').value;
     const grants = document.getElementById('field-chess-grants').value.trim();
     if (next)   opt.next = next;
@@ -554,6 +836,10 @@ function saveQuestion() {
 
   const q = { id, text, timer, options };
   if (chess)         q.chess         = chess;
+  if (snowball)      q.snowball      = snowball;
+  if (ordering)      q.ordering      = ordering;
+  if (mapData)       q.map           = mapData;
+  if (yatzy)         q.yatzy         = yatzy;
   if (document.getElementById('field-bonfire').checked) q.bonfire = true;
   if (removeItem)    q.removeItem    = removeItem;
   if (removeItemMsg) q.removeItemMsg = removeItemMsg;
@@ -569,31 +855,25 @@ function saveQuestion() {
   toast(`Domanda "${id}" salvata!`, 'success');
 }
 
+// Apre il gioco su questa domanda in modalità test (sempre nella stessa scheda "badnews-test").
+// Il gioco legge le domande salvate qui nell'admin: non serve esportare.
+function testQuestion(id) {
+  window.open('index.html?test=' + encodeURIComponent(id), 'badnews-test');
+}
+
 function moveQuestion(id, direction) {
   const ids = Object.keys(adminQuestions);
   const idx = ids.indexOf(id);
   const swapIdx = idx + direction;
   if (swapIdx < 0 || swapIdx >= ids.length) return;
 
-  const swapId = ids[swapIdx];
-
-  // Scambia tutti i riferimenti "next" tra i due id in tutte le domande
-  Object.values(adminQuestions).forEach(q => {
-    q.options.forEach(o => {
-      if (o.next === id)     o.next = swapId;
-      else if (o.next === swapId) o.next = id;
-    });
-  });
-
-  // Ricostruisce l'oggetto nel nuovo ordine
+  // Cambia solo l'ordine della lista: collegamenti e domanda iniziale restano invariati
+  // (il percorso del gioco dipende solo dai collegamenti "vai a")
   const newIds = [...ids];
   [newIds[idx], newIds[swapIdx]] = [newIds[swapIdx], newIds[idx]];
   const reordered = {};
   newIds.forEach(qid => { reordered[qid] = adminQuestions[qid]; });
   adminQuestions = reordered;
-
-  // La domanda iniziale diventa sempre la prima della lista
-  adminStartQuestion = newIds[0];
 
   saveToStorage();
   renderAll();
@@ -871,7 +1151,7 @@ function renderGraph(resetView = true) {
     const bg     = isStart ? '#2d1800' : isOrphan ? '#1e1e10' : '#16213e';
     const border = isStart ? '#ffa502' : isOrphan ? '#665544' : '#2e3f6e';
     const bw     = isStart ? 2.5 : 1.5;
-    const label  = (q.bonfire ? '🔥 ' : '') + (q.chess ? '♟ ' : '') + q.text;
+    const label  = (q.bonfire ? '🔥 ' : '') + (q.chess ? '♟ ' : '') + (q.snowball ? '⛄ ' : '') + (q.ordering ? '📋 ' : '') + (q.map ? '🗺️ ' : '') + (q.yatzy ? '🎲 ' : '') + q.text;
     const txt    = label.length > 30 ? label.substring(0, 28) + '…' : label;
     const idPillW = id.length * 8 + 16;
 
@@ -1149,6 +1429,9 @@ async function exportJS() {
     'const QUESTIONS = ' + JSON.stringify(adminQuestions, null, 2) + ';',
     '',
     'const START_QUESTION = ' + JSON.stringify(adminStartQuestion) + ';',
+    '',
+    '// Posizioni dei nodi nel grafo dell\'admin (il gioco le ignora)',
+    'const LAYOUT = ' + JSON.stringify(nodeDragPositions) + ';',
   ].join('\n');
 
   if ('showDirectoryPicker' in window) {
@@ -1180,7 +1463,7 @@ function importJS(e) {
       const code = ev.target.result;
 
       // Estrai QUESTIONS con regex-free parsing: usa Function
-      const fn = new Function(code + '\n return { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : null };');
+      const fn = new Function(code + '\n return { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : null, LAYOUT: typeof LAYOUT !== "undefined" ? LAYOUT : null };');
       const result = fn();
 
       if (!result.QUESTIONS || typeof result.QUESTIONS !== 'object') {
@@ -1191,6 +1474,10 @@ function importJS(e) {
       if (result.START_QUESTION) adminStartQuestion = result.START_QUESTION;
       if (result.ITEMS && typeof result.ITEMS === 'object') {
         adminItems = { ...adminItems, ...result.ITEMS };
+      }
+      if (result.LAYOUT && typeof result.LAYOUT === 'object') {
+        nodeDragPositions = { ...result.LAYOUT };
+        saveLayoutToStorage();
       }
 
       saveToStorage();

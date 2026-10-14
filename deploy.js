@@ -66,6 +66,34 @@ function describeQuestions(file) {
   return { count: ids.length, header, first: first.text };
 }
 
+// GitHub Pages fa tenere i file in cache per 10 minuti: se index.html è nuovo ma
+// style.css è ancora quello vecchio la pagina si rompe. Aggiungo ?v=<hash del contenuto>
+// ai link dei file pubblicati, così un file cambiato ha sempre un indirizzo nuovo.
+const VERSIONED = ['style.css', 'game.js', 'snowball.js', 'order.js', 'map.js', 'yatzy.js', 'questions.enc.js',
+                   'admin.css', 'admin.js', 'chess-puzzles.js', 'order-presets.js'];
+
+function bustCache() {
+  const changed = [];
+  for (const page of ['index.html', 'admin.html']) {
+    const pagePath = path.join(DIR, page);
+    if (!fs.existsSync(pagePath)) continue;
+    let html = fs.readFileSync(pagePath, 'utf8');
+    const before = html;
+    for (const file of VERSIONED) {
+      const filePath = path.join(DIR, file);
+      if (!fs.existsSync(filePath)) continue;
+      const v = crypto.createHash('sha1').update(fs.readFileSync(filePath)).digest('hex').slice(0, 8);
+      const escaped = file.replace(/\./g, '\\.');
+      html = html.replace(new RegExp(`((?:src|href)=")${escaped}(\\?v=[0-9a-f]*)?"`, 'g'), `$1${file}?v=${v}"`);
+    }
+    if (html !== before) {
+      fs.writeFileSync(pagePath, html);
+      changed.push(page);
+    }
+  }
+  return changed;
+}
+
 async function main() {
   console.log('── Bad News Quiz: pubblicazione ──\n');
 
@@ -108,6 +136,11 @@ async function main() {
   } else {
     console.log('• Domande invariate, niente da cifrare');
   }
+
+  // ── Versione nei link (evita che il browser usi CSS/JS vecchi dalla cache) ──
+
+  const changedPages = bustCache();
+  if (changedPages.length) console.log('• Aggiornate le versioni dei file in ' + changedPages.join(', '));
 
   // ── 3. Controllo di sicurezza + commit ────────────────────────────────────
 
