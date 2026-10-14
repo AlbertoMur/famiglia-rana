@@ -1,0 +1,11 @@
+# Domande in chiaro: NON vanno pubblicate (si pubblica solo questions.enc.js)
+questions*.js
+!questions.enc.js
+
+# Password per la cifratura e stato locale del deploy
+password.txt
+.deploy-hash
+
+# Screenshot di lavoro
+s.png
+p.png

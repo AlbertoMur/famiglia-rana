@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#eadfc6" />
+  <title>Bad News Quiz — Anniversario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Permanent+Marker&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Scarabocchi di sfondo ───────────────────── -->
+  <div class="doodles" aria-hidden="true">
+    <svg class="doodle d1" viewBox="0 0 100 100"><path d="M50 85 C 20 60, 5 40, 20 22 C 32 8, 48 15, 50 30 C 52 15, 68 8, 80 22 C 95 40, 80 60, 50 85 Z"/></svg>
+    <svg class="doodle d2" viewBox="0 0 100 100"><path d="M50 8 L61 38 L93 39 L67 58 L77 90 L50 71 L23 90 L33 58 L7 39 L39 38 Z"/></svg>
+    <svg class="doodle d3" viewBox="0 0 100 100"><path d="M50 50 a4 4 0 1 1 8 0 a8 8 0 1 1 -16 0 a12 12 0 1 1 24 0 a16 16 0 1 1 -32 0 a20 20 0 1 1 40 0"/></svg>
+    <svg class="doodle d4" viewBox="0 0 100 100"><path d="M10 70 C 30 40, 45 90, 65 55 S 85 30, 88 20"/><path d="M76 18 L88 20 L86 32"/></svg>
+    <svg class="doodle d5" viewBox="0 0 100 100"><path d="M50 85 C 20 60, 5 40, 20 22 C 32 8, 48 15, 50 30 C 52 15, 68 8, 80 22 C 95 40, 80 60, 50 85 Z"/></svg>
+    <svg class="doodle d6" viewBox="0 0 100 100"><path d="M5 50 Q 20 20 35 50 T 65 50 T 95 50"/></svg>
+    <svg class="doodle d7" viewBox="0 0 100 100"><path d="M50 8 L61 38 L93 39 L67 58 L77 90 L50 71 L23 90 L33 58 L7 39 L39 38 Z"/></svg>
+  </div>
+
+  <!-- ── Lock Screen (solo se le domande sono cifrate) ── -->
+  <div id="screen-lock" class="screen">
+    <form id="lock-form" class="lock-box" autocomplete="off">
+      <span class="lock-emoji">🔒</span>
+      <h2 id="lock-hint">Password</h2>
+      <input id="lock-input" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="scrivi qui" required />
+      <p id="lock-error"></p>
+      <button type="submit" class="btn-primary">APRI</button>
+    </form>
+  </div>
+
+  <!-- ── Title Screen ─────────────────────────────── -->
+  <div id="screen-title" class="screen active">
+    <div class="title-box">
+      <span class="title-emoji">💘</span>
+      <h1>Bad News Quiz</h1>
+      <p class="subtitle">Quanto ci conosci davvero? Una risposta sbagliata e tutto finisce.</p>
+      <button id="btn-start" class="btn-primary">INIZIA</button>
+      <p class="sound-hint">🔊 Alza il volume e togli il silenzioso</p>
+
+      <div class="collection-section">
+        <p class="coll-label">Oggetti trovati</p>
+        <div id="collection-display"></div>
+        <button id="btn-reset-collection" class="btn-reset-coll">↺ Ricomincia da zero</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Game Screen ───────────────────────────────── -->
+  <div id="screen-game" class="screen">
+
+    <!-- Inventario (appare solo con oggetti) -->
+    <div id="inventory-bar"></div>
+
+    <!-- Notifica raccolta oggetto -->
+    <div id="item-notification"></div>
+
+    <!-- Toast per opzioni bloccate -->
+    <div id="game-toast"></div>
+
+    <div id="game-wrapper" class="game-wrapper">
+
+      <!-- Timer -->
+      <div class="timer-container">
+        <div class="timer-label-row">
+          <span id="q-counter">Domanda 1</span>
+          <span id="timer-label">60s</span>
+        </div>
+        <div class="timer-track">
+          <div id="timer-bar" class="timer-green"></div>
+        </div>
+      </div>
+
+      <!-- Domanda -->
+      <div class="question-box">
+        <p id="question-text">Caricamento...</p>
+      </div>
+
+      <!-- Opzioni -->
+      <div id="options-container"></div>
+
+    </div>
+  </div>
+
+  <!-- ── Game Over Screen ──────────────────────────── -->
+  <div id="screen-gameover" class="screen">
+    <div class="gameover-box">
+      <span class="big-x">✗</span>
+      <h2 class="stamp">BAD NEWS</h2>
+      <p id="gameover-message"></p>
+      <button id="btn-gameover-retry" class="btn-primary">RIPROVA</button>
+    </div>
+  </div>
+
+  <!-- ── Win Screen ────────────────────────────────── -->
+  <div id="screen-win" class="screen">
+    <div id="confetti-container"></div>
+    <div class="win-box">
+      <!-- Metti una foto chiamata foto.jpg nella cartella e comparirà qui -->
+      <div class="polaroid-photo">
+        <span class="big-heart">❤️</span>
+        <img src="foto.jpg" alt="" onerror="this.remove()" />
+      </div>
+      <h2>Hai vinto!</h2>
+      <p id="win-message">Lo sapevo che ci conoscevi bene. Grazie per esserci — ogni giorno con te è un'avventura. Buon anniversario! 🎉</p>
+      <button id="btn-win-restart" class="btn-primary">GIOCA ANCORA</button>
+    </div>
+  </div>
+
+  <!-- In locale c'è questions.js (in chiaro); online solo questions.enc.js (cifrato) -->
+  <script src="questions.js"></script>
+  <script src="questions.enc.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

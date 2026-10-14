@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Bad News Quiz</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+
+  <header>
+    <h1>Bad News Quiz</h1>
+    <span class="badge">Admin Panel</span>
+    <a href="index.html" style="margin-left: auto; color: #aaa; font-size: 0.85rem; text-decoration: none;">← Torna al gioco</a>
+  </header>
+
+  <div class="admin-container">
+
+    <!-- ── Impostazioni generali ───────────────────── -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Impostazioni</h2>
+      </div>
+      <div class="panel-body">
+        <div class="start-question-row">
+          <label for="start-question-select">Domanda iniziale:</label>
+          <select id="start-question-select">
+            <option value="">(nessuna domanda)</option>
+          </select>
+        </div>
+
+        <hr />
+
+        <div class="import-export-row">
+          <button class="btn btn-success" id="btn-export">Esporta questions.js</button>
+          <button class="btn btn-blue" id="btn-import-pick">Importa questions.js</button>
+          <button class="btn btn-ghost" id="btn-reset-storage">Ripristina originale</button>
+          <input type="file" id="file-import" accept=".js" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Lista domande ──────────────────────────── -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Domande</h2>
+        <button class="btn btn-accent" id="btn-new-question">+ Nuova domanda</button>
+      </div>
+      <div class="panel-body">
+        <div id="question-list">
+          <div class="empty-state">Caricamento...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Form domanda ───────────────────────────── -->
+    <div class="panel" id="form-panel" style="display:none;">
+      <div class="panel-header">
+        <h2 id="form-title">Nuova Domanda</h2>
+        <button class="btn btn-ghost btn-sm" id="btn-cancel-form">Annulla</button>
+      </div>
+      <div class="panel-body">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-id">ID Domanda</label>
+            <input type="text" id="field-id" placeholder="es. q1" />
+          </div>
+          <div class="form-group">
+            <label for="field-timer">Timer (secondi)</label>
+            <input type="number" id="field-timer" value="60" min="1" max="300" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="field-text">Testo domanda</label>
+          <textarea id="field-text" placeholder="Scrivi la domanda..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="field-remove-item">Rimuove oggetto</label>
+            <input type="text" id="field-remove-item" placeholder="ID oggetto da rimuovere (es. chiave)" />
+          </div>
+          <div class="form-group">
+            <label for="field-remove-item-msg">Messaggio rimozione</label>
+            <input type="text" id="field-remove-item-msg" placeholder="Es. Hai usato la chiave per aprire la porta." />
+          </div>
+        </div>
+
+        <hr />
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <label style="font-weight:700; font-size:0.85rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;">
+            Opzioni (max 4)
+          </label>
+          <button class="btn btn-ghost btn-sm" id="btn-add-option">+ Aggiungi opzione</button>
+        </div>
+
+        <div id="options-rows"></div>
+
+        <div style="margin-top: 18px; display: flex; gap: 12px;">
+          <button class="btn btn-accent" id="btn-save-question">Salva domanda</button>
+          <button class="btn btn-ghost" id="btn-cancel-form-2" onclick="document.getElementById('btn-cancel-form').click()">Annulla</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Oggetti ────────────────────────────────── -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Oggetti</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="btn-new-item">+ Nuovo</button>
+          <button class="btn btn-accent btn-sm" id="btn-save-items">Salva oggetti</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:14px;">
+          Gli oggetti rilevati automaticamente dalle domande compaiono qui. Puoi aggiungerne di nuovi o rimuovere quelli non usati.
+        </p>
+        <div id="items-list"><div class="empty-state">Nessun oggetto rilevato.</div></div>
+      </div>
+    </div>
+
+    <!-- ── Grafo visuale ──────────────────────────── -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Grafo domande</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="graph-hint">Clicca un nodo per modificarlo &nbsp;·&nbsp; Trascina per muovere &nbsp;·&nbsp; Scroll per zoom</span>
+          <button class="btn btn-ghost btn-sm" id="btn-fit-graph">Centra</button>
+          <button class="btn btn-ghost btn-sm" id="btn-refresh-graph">Aggiorna</button>
+          <button class="btn btn-ghost btn-sm" id="btn-reset-layout">Reset layout</button>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <div id="graph-container" class="graph-container">(caricamento...)</div>
+      </div>
+    </div>
+
+  </div><!-- /admin-container -->
+
+  <!-- ── Toast ─────────────────────────────────────── -->
+  <div id="toast"></div>
+
+  <script src="questions.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,630 @@
+/* Admin Panel — Bad News Quiz */
+
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;900&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --accent: #ff6b35;
+  --accent-dark: #e05520;
+  --danger: #ff4757;
+  --success: #2ed573;
+  --blue: #1e90ff;
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #0f3460;
+  --text: #e0e0e0;
+  --text-dim: #999;
+  --border: 1px solid #333;
+  --radius: 10px;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+/* ── Header ─────────────────────────── */
+
+header {
+  background: var(--surface);
+  border-bottom: 2px solid var(--accent);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+header h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.6rem;
+  color: var(--accent);
+}
+
+header .badge {
+  font-size: 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ── Layout ─────────────────────────── */
+
+.admin-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ── Panels ─────────────────────────── */
+
+.panel {
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panel-header {
+  background: var(--surface2);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-header h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.2rem;
+  color: var(--accent);
+}
+
+.panel-body {
+  padding: 20px;
+}
+
+/* ── Buttons ─────────────────────────── */
+
+.btn {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+  letter-spacing: 0.3px;
+}
+
+.btn:hover  { filter: brightness(1.12); }
+.btn:active { transform: scale(0.97); }
+
+.btn-accent  { background: var(--accent); color: #fff; }
+.btn-danger  { background: var(--danger); color: #fff; }
+.btn-success { background: var(--success); color: #1a1a1a; }
+.btn-blue    { background: var(--blue); color: #fff; }
+.btn-ghost   {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid #444;
+}
+.btn-ghost:hover { color: var(--text); border-color: #666; }
+
+.btn-sm { padding: 5px 12px; font-size: 0.8rem; }
+
+/* ── Forms ───────────────────────────── */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group select {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-group textarea { resize: vertical; min-height: 80px; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* ── Option rows ────────────────────── */
+
+.option-row {
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.opt-move-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.option-row .option-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.option-row input[type="text"] {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.option-row input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.opt-item-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.opt-secret-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border: 1px dashed #4a2a6a;
+  border-radius: 6px;
+  background: rgba(120, 40, 180, 0.08);
+}
+
+.opt-secret-item {
+  background: #1a1a1a;
+  border: 1px solid #6a3a9a;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  width: 100%;
+  font-family: 'Nunito', sans-serif;
+}
+.opt-secret-item:focus {
+  outline: none;
+  border-color: #a060e0;
+}
+
+.opt-grants, .opt-grants-msg, .opt-requires {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  width: 100%;
+}
+.opt-grants:focus, .opt-grants-msg:focus, .opt-requires:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.next-select {
+  font-size: 0.8rem !important;
+  padding: 4px 8px !important;
+  margin-top: 4px;
+}
+
+.option-correct-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.toggle-correct {
+  width: 36px;
+  height: 20px;
+  background: #444;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.toggle-correct::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-correct.on {
+  background: var(--success);
+}
+
+.toggle-correct.on::after {
+  transform: translateX(16px);
+}
+
+.option-remove {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.option-remove:hover { background: rgba(255,71,87,0.15); }
+
+/* ── Question cards ─────────────────── */
+
+.question-card {
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  transition: border-color 0.2s;
+}
+
+.q-move-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.btn-move {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 3px 5px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-move:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-move:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.question-card:hover { border-color: var(--accent); }
+
+.question-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.question-card .q-id {
+  font-family: 'Fredoka One', cursive;
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.question-card .q-text {
+  font-size: 0.95rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+
+.question-card .q-meta {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.question-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+#question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 30px;
+  font-size: 0.95rem;
+}
+
+/* ── Graph ──────────────────────────── */
+
+.graph-container {
+  background: #0c1520;
+  border-top: 1px solid #222;
+  height: 520px;
+  overflow: hidden;
+  position: relative;
+  user-select: none;
+  cursor: grab;
+}
+.graph-container:active {
+  cursor: grabbing;
+}
+
+.graph-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 40px;
+  font-size: 0.95rem;
+}
+
+.graph-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Hover su nodi SVG */
+.graph-node:hover .node-bg {
+  filter: brightness(1.35);
+}
+.graph-node:hover .node-hl {
+  opacity: 0.07 !important;
+}
+.graph-node {
+  transition: filter 0.15s;
+  cursor: grab;
+}
+.graph-node:active {
+  cursor: grabbing;
+}
+
+/* ── Import/Export ──────────────────── */
+
+.import-export-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#file-import {
+  display: none;
+}
+
+.start-question-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.start-question-row label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.start-question-row select {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+/* ── Toast ──────────────────────────── */
+
+#toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #333;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  transform: translateY(80px);
+  opacity: 0;
+  transition: transform 0.3s, opacity 0.3s;
+  z-index: 9999;
+  max-width: 320px;
+}
+
+#toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+#toast.success { background: var(--success); color: #1a1a1a; }
+#toast.error   { background: var(--danger); }
+
+/* ── Divider ─────────────────────────── */
+
+hr {
+  border: none;
+  border-top: 1px solid #333;
+  margin: 16px 0;
+}
+
+/* ── Items panel ────────────────────── */
+
+.item-edit-row {
+  display: grid;
+  grid-template-columns: 120px 60px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.item-id-label {
+  font-family: 'Fredoka One', cursive;
+  color: var(--accent);
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-emoji-input {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 1.1rem;
+  text-align: center;
+  width: 100%;
+}
+
+.item-name-input {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  width: 100%;
+  font-family: 'Nunito', sans-serif;
+}
+
+.item-emoji-input:focus,
+.item-name-input:focus,
+.item-id-new:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.item-id-new {
+  background: #1a1a1a;
+  border: 1px solid #ffa502;
+  border-radius: 6px;
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  width: 100%;
+  font-family: 'Nunito', sans-serif;
+}
+
+.item-remove-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+  line-height: 1;
+}
+
+.item-remove-btn:hover { background: rgba(255,71,87,0.15); }
+
+.item-remove-btn.item-in-use {
+  color: #ffa502;
+}
+
+.item-remove-btn.item-in-use:hover { background: rgba(255,165,2,0.15); }
+
+/* ── Responsive ─────────────────────── */
+
+@media (max-width: 600px) {
+  .form-row { grid-template-columns: 1fr; }
+  .option-row { grid-template-columns: 1fr auto; }
+  .option-correct-wrap { display: none; } /* semplificato su mobile — usa il label inline */
+  .import-export-row { flex-direction: column; align-items: flex-start; }
+}
