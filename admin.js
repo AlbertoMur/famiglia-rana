@@ -963,11 +963,77 @@ function initGraphPanZoom() {
 
 // ─── Import / Export ──────────────────────────────────────────────────────────
 
-function exportJS() {
+// Chrome/Edge: la prima volta si sceglie la cartella del gioco, poi l'export
+// sovrascrive direttamente questions.js lì dentro (la cartella resta ricordata).
+// Altri browser: download classico (deploy.js lo trova comunque in Download).
+
+function idbRequest(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('badnews_admin', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('kv');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      try {
+        const tx = open.result.transaction('kv', mode);
+        const req = fn(tx.objectStore('kv'));
+        tx.oncomplete = () => resolve(req.result);
+        tx.onerror = tx.onabort = () => reject(tx.error);
+      } catch (e) {
+        reject(e); // es. oggetto non salvabile: meglio un errore che un'attesa infinita
+      }
+    };
+  });
+}
+const idbGet = (key)        => idbRequest('readonly',  s => s.get(key));
+const idbSet = (key, value) => idbRequest('readwrite', s => s.put(value, key));
+const idbDel = (key)        => idbRequest('readwrite', s => s.delete(key));
+
+async function getGameFolder() {
+  let dir = null;
+  try { dir = await idbGet('gameFolder'); } catch (e) {}
+  if (dir) {
+    let perm = await dir.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await dir.requestPermission({ mode: 'readwrite' });
+    if (perm === 'granted') return dir;
+  }
+
+  toast('Scegli la cartella del gioco (quella con index.html)');
+  dir = await window.showDirectoryPicker({ id: 'badnews-game', mode: 'readwrite' });
+  try {
+    await dir.getFileHandle('index.html');
+  } catch (e) {
+    const err = new Error('In quella cartella non c\'è index.html: scegli la cartella del gioco.');
+    err.name = 'WrongFolder';
+    throw err;
+  }
+  try { await idbSet('gameFolder', dir); } catch (e) {}
+  return dir;
+}
+
+async function writeToGameFolder(content) {
+  const dir = await getGameFolder();
+  const file = await dir.getFileHandle('questions.js', { create: true });
+  const writable = await file.createWritable();
+  await writable.write(content);
+  await writable.close();
+  return dir.name;
+}
+
+function downloadJS(content) {
+  const blob = new Blob([content], { type: 'text/javascript' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'questions.js';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function exportJS() {
   // Salva eventuali modifiche non ancora confermate nel pannello oggetti
   saveItemsFromForm(false);
 
-  const lines = [
+  const content = [
     '// Dati domande per il gioco anniversario',
     '// Generato da admin.html — ' + new Date().toLocaleString('it-IT'),
     '',
@@ -976,16 +1042,24 @@ function exportJS() {
     'const QUESTIONS = ' + JSON.stringify(adminQuestions, null, 2) + ';',
     '',
     'const START_QUESTION = ' + JSON.stringify(adminStartQuestion) + ';',
-  ];
+  ].join('\n');
 
-  const blob = new Blob([lines.join('\n')], { type: 'text/javascript' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'questions.js';
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('questions.js scaricato!', 'success');
+  if ('showDirectoryPicker' in window) {
+    try {
+      const folder = await writeToGameFolder(content);
+      toast(`Salvato in ${folder}/questions.js — ora lancia deploy.bat`, 'success');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError')   { toast('Export annullato', 'error'); return; }
+      if (e.name === 'WrongFolder')  { toast(e.message, 'error'); return; }
+      // Cartella spostata, permesso negato, ecc.: dimentico la cartella e scarico il file
+      console.error('Salvataggio diretto non riuscito:', e);
+      try { await idbDel('gameFolder'); } catch (e2) {}
+    }
+  }
+
+  downloadJS(content);
+  toast('questions.js scaricato in Download — deploy.bat lo trova da solo', 'success');
 }
 
 function importJS(e) {
