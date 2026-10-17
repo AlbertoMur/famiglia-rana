@@ -508,6 +508,8 @@ function loadQuestion(id) {
   if (typeof stopSnowball === 'function') stopSnowball();
   if (typeof destroyMapGame === 'function') destroyMapGame();
   if (typeof destroyYatzy === 'function') destroyYatzy();
+  if (typeof destroyGuillotine === 'function') destroyGuillotine();
+  if (typeof destroyPokemon === 'function') destroyPokemon();
   showScreen('screen-game');
   questionCount++;
 
@@ -530,8 +532,8 @@ function loadQuestion(id) {
 
   renderQuestion(q);
 
-  // Yatzy: niente timer, una partita dura qualche minuto
-  const timed = !q.yatzy;
+  // Yatzy, ghigliottina e palestra: niente timer, hanno il loro ritmo
+  const timed = !q.yatzy && !q.guillotine && !q.pokemon;
   document.getElementById('game-wrapper').classList.toggle('no-timer', !timed);
   if (!timed) {
     clearTimer();
@@ -574,6 +576,18 @@ function renderQuestion(q) {
 
   if (q.yatzy) {
     renderYatzyGame(q);
+    renderJollyButton(q);
+    return;
+  }
+
+  if (q.guillotine) {
+    renderGuillotine(q);
+    renderJollyButton(q);
+    return;
+  }
+
+  if (q.pokemon) {
+    renderPokemon(q);
     renderJollyButton(q);
     return;
   }
@@ -1058,15 +1072,32 @@ const YATZY_MESSAGES = [
   'La fortuna è cieca, ma la sfortuna ci vede benissimo.'
 ];
 
+const GUILLOTINE_MESSAGES = [
+  'Ci hai rimesso il tricorno.',
+  'Il boia ringrazia per la puntualità.',
+  'Savvy? Evidentemente no.'
+];
+
+const POKEMON_MESSAGES = [
+  'Corri al Centro Pokémon. Anzi no: ricomincia.',
+  'Il capopalestra non è rimasto impressionato.',
+  'La medaglia dovrà aspettare.',
+  'Le tue creature sono esauste. E un po\' anche tu.'
+];
+
 function showGameOver(reason) {
   if (typeof stopSnowball === 'function') stopSnowball();
   if (typeof destroyYatzy === 'function') destroyYatzy();
+  if (typeof destroyGuillotine === 'function') destroyGuillotine();
+  if (typeof destroyPokemon === 'function') destroyPokemon();
   const pool = reason === 'timeout'  ? TIMEOUT_MESSAGES
              : reason === 'chess'    ? CHESS_MESSAGES
              : reason === 'snowball' ? SNOWBALL_MESSAGES
              : reason === 'order'    ? ORDER_MESSAGES
              : reason === 'map'      ? MAP_MESSAGES
              : reason === 'yatzy'    ? YATZY_MESSAGES
+             : reason === 'guillotine' ? GUILLOTINE_MESSAGES
+             : reason === 'pokemon' ? POKEMON_MESSAGES
              : GAMEOVER_MESSAGES;
   const msg = document.getElementById('gameover-message');
   if (msg) msg.textContent = pool[Math.floor(Math.random() * pool.length)];

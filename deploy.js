@@ -69,7 +69,7 @@ function describeQuestions(file) {
 // GitHub Pages fa tenere i file in cache per 10 minuti: se index.html è nuovo ma
 // style.css è ancora quello vecchio la pagina si rompe. Aggiungo ?v=<hash del contenuto>
 // ai link dei file pubblicati, così un file cambiato ha sempre un indirizzo nuovo.
-const VERSIONED = ['style.css', 'game.js', 'snowball.js', 'order.js', 'map.js', 'yatzy.js', 'questions.enc.js',
+const VERSIONED = ['style.css', 'game.js', 'snowball.js', 'order.js', 'map.js', 'yatzy.js', 'guillotine.js', 'pokemon.js', 'pokemon-world.js', 'pokemon-data.js', 'questions.enc.js',
                    'admin.css', 'admin.js', 'chess-puzzles.js', 'order-presets.js'];
 
 function bustCache() {

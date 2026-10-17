@@ -282,6 +282,10 @@ function renderQuestionList() {
               ? `<span>🗺️ Dove eravamo? — tolleranza ${formatRadius(q.map.radius)}${q.map.hideAnswer ? ' · 🙈 soluzione nascosta' : ''}</span>`
               : q.yatzy
               ? `<span>🎲 Yatzy — obiettivo ${q.yatzy.target}</span>`
+              : q.guillotine
+              ? `<span>🗡️ ${escHtml(GUILLOTINE_LEVELS[q.guillotine.difficulty] || q.guillotine.difficulty)}</span>`
+              : q.pokemon
+              ? `<span>⚔️ ${escHtml(q.pokemon.name)}</span>`
               : `<span>✓ ${correctCount} corretta/e</span>
             <span>⊞ ${q.options.filter(o => !o.hidden).length} opzioni</span>`}
             ${q.options.some(o => o.hidden) ? '<span>👆 nascosta</span>' : ''}
@@ -341,6 +345,12 @@ function editQuestion(id) {
 // valori "<id puzzle>" per gli scacchi, "snowball:<livello>" per le palle di neve.
 
 const SNOWBALL_LEVELS = { facile: 'Facile', normale: 'Normale', difficile: 'Difficile' };
+function pkGymLabel(g) {
+  if (g.world) return 'Avventura — ' + (g.sub ? g.sub.toLowerCase().replace(/^./, c => c.toUpperCase()) + ': ' : '') + g.name + (g.bonfire ? ' 🔥' : '');
+  return 'Palestra — ' + g.name + ' (' + (g.trainers || []).length + ' sfide)';
+}
+
+const GUILLOTINE_LEVELS = { facile: 'Facile (5 calate)', normale: 'Normale (8 calate, qualche finta)', difficile: 'Difficile (10 calate, più finte)' };
 
 function renderChessSelect() {
   const sel = document.getElementById('field-chess');
@@ -356,6 +366,18 @@ function renderChessSelect() {
   snow.label = '⛄ Palle di neve';
   Object.entries(SNOWBALL_LEVELS).forEach(([lvl, name]) => snow.appendChild(new Option('Palle di neve — ' + name, 'snowball:' + lvl)));
   sel.appendChild(snow);
+
+  const gil = document.createElement('optgroup');
+  gil.label = '🗡️ Ghigliottina';
+  Object.entries(GUILLOTINE_LEVELS).forEach(([lvl, name]) => gil.appendChild(new Option('Ghigliottina — ' + name, 'guillotine:' + lvl)));
+  sel.appendChild(gil);
+
+  if (typeof PK_GYMS !== 'undefined') {
+    const gyms = document.createElement('optgroup');
+    gyms.label = '⚔️ Palestra';
+    Object.entries(PK_GYMS).forEach(([gid, g]) => gyms.appendChild(new Option(pkGymLabel(g), 'pokemon:' + gid)));
+    sel.appendChild(gyms);
+  }
 
   const dice = document.createElement('optgroup');
   dice.label = '🎲 Yatzy';
@@ -433,18 +455,24 @@ function setChessFields(q) {
   if (q && q.ordering && !Array.from(sel.options).some(o => o.value === 'order:' + q.ordering.id)) {
     sel.appendChild(new Option('Metti in ordine — ' + q.ordering.name, 'order:' + q.ordering.id));
   }
+  // Palestra salvata ma non più in pokemon-data.js: la aggiungo al menu
+  if (q && q.pokemon && !Array.from(sel.options).some(o => o.value === 'pokemon:' + q.pokemon.gym)) {
+    sel.appendChild(new Option('Palestra — ' + q.pokemon.name, 'pokemon:' + q.pokemon.gym));
+  }
   sel.value = chess ? chess.id
             : (q && q.snowball) ? 'snowball:' + q.snowball.difficulty
             : (q && q.ordering) ? 'order:' + q.ordering.id
             : (q && q.map) ? 'map'
             : (q && q.yatzy) ? 'yatzy'
+            : (q && q.guillotine) ? 'guillotine:' + q.guillotine.difficulty
+            : (q && q.pokemon) ? 'pokemon:' + q.pokemon.gym
             : '';
 
   setMapDraft(q && q.map ? q.map : null);
   document.getElementById('field-yatzy-target').value = q && q.yatzy ? q.yatzy.target : 140;
   updateYatzyOdds();
 
-  const solved = (chess || (q && (q.snowball || q.map || q.yatzy))) ? (q.options.find(o => o.correct) || {}) : {};
+  const solved = (chess || (q && (q.snowball || q.map || q.yatzy || q.guillotine || q.pokemon))) ? (q.options.find(o => o.correct) || {}) : {};
   document.getElementById('field-chess-next').innerHTML =
     '<option value="">— Nessuna (vittoria) —</option>' + getQuestionOptions(solved.next || '');
   document.getElementById('field-chess-grants').value = solved.grantsItem || '';
@@ -470,6 +498,10 @@ function toggleChessFields() {
 
   document.getElementById('minigame-note').textContent =
       value.startsWith('snowball:') ? 'Duello a turni contro il computer: chi finisce l\'energia perde. Se perde è game over. Il timer non conta.'
+    : value.startsWith('guillotine:') ? 'La lama trema prima di calare: il giocatore tocca per abbassare la testa. Se lo prende è game over. Il timer non conta.'
+    : value.startsWith('pokemon:') && typeof PK_GYMS !== 'undefined' && PK_GYMS[value.slice(8)] && PK_GYMS[value.slice(8)].world
+      ? 'Avventura stile Pokémon da esplorare (percorsi, erba alta, grotta, palestre) con una squadra già fatta. Si finisce la tappa battendo il capopalestra o arrivando al traguardo → prosegue; squadra esausta → game over. Il timer non conta. Una tappa per domanda, in ordine: 1, 2, 3.' + (PK_GYMS[value.slice(8)].bonfire ? ' Questa tappa comincia in un CENTRO POKéMON: il falò si accende da solo.' : '') + ' Mappe e dialoghi sono in pokemon-data.js.'
+    : value.startsWith('pokemon:') ? 'Lotte stile Pokémon contro gli allenatori della palestra e poi il capopalestra, con una squadra già fatta. Vince la medaglia → prosegue; squadra esausta → game over. Il timer non conta. Creature, allenatori e dialoghi sono in pokemon-data.js.'
     : value === 'yatzy' ? 'Partita a Yatzy da soli: appena si raggiunge il punteggio si vince; se diventa impossibile raggiungerlo è game over. Il timer non conta.'
     : isMap ? 'Il giocatore tocca la mappa e conferma: entro la tolleranza prosegue, altrimenti è game over (e vede dov\'era il punto). Il timer conta.'
     : isOrder ? 'Il giocatore trascina gli elementi e conferma: ogni ordine valido porta alla sua strada, qualsiasi altro ordine è game over. Il timer conta: meglio alzarlo (es. 120s).'
@@ -737,6 +769,8 @@ function saveQuestion() {
   let ordering = null;
   let mapData = null;
   let yatzy = null;
+  let guillotine = null;
+  let pokemon = null;
   const options = [];
   let hasCorrect = false;
 
@@ -763,6 +797,15 @@ function saveQuestion() {
     } else if (chessId === 'map') {
       if (mapDraft.lat === null) { toast('Clicca sulla mappa il punto giusto', 'error'); return; }
       mapData = { ...mapDraft };
+    } else if (chessId.startsWith('guillotine:')) {
+      guillotine = { difficulty: chessId.slice('guillotine:'.length) };
+    } else if (chessId.startsWith('pokemon:')) {
+      const gid = chessId.slice('pokemon:'.length);
+      const prev = editingId && adminQuestions[editingId] && adminQuestions[editingId].pokemon;
+      const bundle = typeof pkBundle === 'function' ? pkBundle(gid) : null;
+      if (bundle) pokemon = { gym: gid, name: bundle.gym.name, data: bundle };
+      else if (prev && prev.gym === gid) pokemon = prev;
+      else { toast('Palestra non trovata', 'error'); return; }
     } else if (chessId === 'yatzy') {
       const target = parseInt(document.getElementById('field-yatzy-target').value, 10);
       if (!target || target < 1) { toast('Punteggio da raggiungere non valido', 'error'); return; }
@@ -774,7 +817,11 @@ function saveQuestion() {
       chess = { id: chessId, name: puzzle.name, fen: puzzle.fen, moves: [...puzzle.moves] };
     }
 
-    const opt = { text: snowball ? '⛄ Sfida vinta' : mapData ? '🗺️ Trovato' : yatzy ? '🎲 Obiettivo raggiunto' : '♟ Puzzle risolto', correct: true };
+    const opt = {
+      text: snowball ? '⛄ Sfida vinta' : mapData ? '🗺️ Trovato' : yatzy ? '🎲 Obiettivo raggiunto'
+          : guillotine ? '🗡️ Sopravvissuto' : pokemon ? '⚔️ Medaglia ottenuta' : '♟ Puzzle risolto',
+      correct: true
+    };
     const next   = document.getElementById('field-chess-next').value;
     const grants = document.getElementById('field-chess-grants').value.trim();
     if (next)   opt.next = next;
@@ -840,7 +887,11 @@ function saveQuestion() {
   if (ordering)      q.ordering      = ordering;
   if (mapData)       q.map           = mapData;
   if (yatzy)         q.yatzy         = yatzy;
+  if (guillotine)    q.guillotine    = guillotine;
+  if (pokemon)       q.pokemon       = pokemon;
   if (document.getElementById('field-bonfire').checked) q.bonfire = true;
+  // Le tappe dell'avventura che cominciano in un CENTRO POKéMON fanno da falò
+  if (pokemon && pokemon.data && pokemon.data.gym && pokemon.data.gym.bonfire) q.bonfire = true;
   if (removeItem)    q.removeItem    = removeItem;
   if (removeItemMsg) q.removeItemMsg = removeItemMsg;
   adminQuestions[id] = q;
@@ -1151,7 +1202,7 @@ function renderGraph(resetView = true) {
     const bg     = isStart ? '#2d1800' : isOrphan ? '#1e1e10' : '#16213e';
     const border = isStart ? '#ffa502' : isOrphan ? '#665544' : '#2e3f6e';
     const bw     = isStart ? 2.5 : 1.5;
-    const label  = (q.bonfire ? '🔥 ' : '') + (q.chess ? '♟ ' : '') + (q.snowball ? '⛄ ' : '') + (q.ordering ? '📋 ' : '') + (q.map ? '🗺️ ' : '') + (q.yatzy ? '🎲 ' : '') + q.text;
+    const label  = (q.bonfire ? '🔥 ' : '') + (q.chess ? '♟ ' : '') + (q.snowball ? '⛄ ' : '') + (q.ordering ? '📋 ' : '') + (q.map ? '🗺️ ' : '') + (q.yatzy ? '🎲 ' : '') + (q.guillotine ? '🗡️ ' : '') + (q.pokemon ? '⚔️ ' : '') + q.text;
     const txt    = label.length > 30 ? label.substring(0, 28) + '…' : label;
     const idPillW = id.length * 8 + 16;
 
@@ -1419,6 +1470,15 @@ function downloadJS(content) {
 async function exportJS() {
   // Salva eventuali modifiche non ancora confermate nel pannello oggetti
   saveItemsFromForm(false);
+
+  // Palestre: ricopio i dati aggiornati da pokemon-data.js (creature, allenatori, dialoghi)
+  if (typeof pkBundle === 'function') {
+    Object.values(adminQuestions).forEach(q => {
+      const b = q.pokemon && pkBundle(q.pokemon.gym);
+      if (b) { q.pokemon.data = b; q.pokemon.name = b.gym.name; }
+    });
+    saveToStorage();
+  }
 
   const content = [
     '// Dati domande per il gioco anniversario',
