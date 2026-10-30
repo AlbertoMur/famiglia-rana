@@ -1,0 +1,42 @@
+<!-- Icona dell'app: cuore trafitto dalla freccia di Cupido, sul fondo a puntini del gioco.
+     Sorgente dei PNG in questa cartella. Tutto il disegno sta nel cerchio centrale
+     (raggio 40%) così regge anche le icone "maskable" ritagliate a cerchio da Android. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="16" cy="16" r="2" fill="#2a2622" fill-opacity="0.13"/>
+    </pattern>
+    <path id="heart" d="M12 21 C 5 15, 1 11, 1 6.5 C 1 3.2, 3.6 1, 6.6 1 C 8.8 1, 10.8 2.3, 12 4.3 C 13.2 2.3, 15.2 1, 17.4 1 C 20.4 1, 23 3.2, 23 6.5 C 23 11, 19 15, 12 21 Z"/>
+  </defs>
+
+  <rect width="512" height="512" fill="#eadfc6"/>
+  <rect width="512" height="512" fill="url(#dots)"/>
+
+  <!-- asta della freccia (dietro al cuore) -->
+  <line x1="128" y1="366" x2="380" y2="166" stroke="#2a2622" stroke-width="20" stroke-linecap="round"/>
+  <line x1="128" y1="366" x2="380" y2="166" stroke="#c98a4b" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- cuore: ombra piena spostata, poi il cuore con bordo d'inchiostro -->
+  <g transform="translate(118 128) scale(11.5) rotate(-6 12 11)">
+    <use href="#heart" transform="translate(1.1 1.3)" fill="#2a2622"/>
+    <use href="#heart" fill="#f39a86" stroke="#2a2622" stroke-width="1.15" stroke-linejoin="round"/>
+    <!-- riflesso -->
+    <path d="M 4.2 7.2 C 4 5.4, 5 4.1, 6.6 3.9" fill="none" stroke="#fdf8ec" stroke-width="1.1" stroke-linecap="round"/>
+  </g>
+
+  <!-- la freccia esce davanti: ultimo tratto d'asta e punta a cuore -->
+  <line x1="340" y1="198" x2="380" y2="166" stroke="#2a2622" stroke-width="20" stroke-linecap="round"/>
+  <line x1="340" y1="198" x2="380" y2="166" stroke="#c98a4b" stroke-width="8" stroke-linecap="round"/>
+  <g transform="translate(380 166) rotate(-38.5)">
+    <path d="M 34 0 C 26 -4, 23 -15, 17 -12 C 11 -9, 13 -3, 15 0 C 13 3, 11 9, 17 12 C 23 15, 26 4, 34 0 Z"
+          transform="translate(-20 0) scale(1.9)"
+          fill="#d64545" stroke="#2a2622" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+
+  <!-- piume in coda -->
+  <g transform="translate(128 366) rotate(-38.5)">
+    <path d="M 22 0 L 6 -22 L -22 -22 L -6 0 L -22 22 L 6 22 Z"
+          fill="#f7c6c7" stroke="#2a2622" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M 10 -11 L -10 -11 M 10 11 L -10 11" stroke="#2a2622" stroke-width="3.5" stroke-linecap="round" opacity="0.55"/>
+  </g>
+</svg>

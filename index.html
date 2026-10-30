@@ -4,12 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#eadfc6" />
+  <!-- Installabile come app (icona sul telefono, a schermo intero): vedi manifest.json -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <!-- iPhone: Safari ignora il manifest, usa questi per "Aggiungi alla schermata Home" -->
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bad News" />
   <title>Bad News Quiz — Anniversario</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <link rel="stylesheet" href="style.css?v=bb47292d" />
+  <link rel="stylesheet" href="style.css?v=198bbe3c" />
 </head>
 <body>
 
@@ -137,21 +146,41 @@
       </div>
       <h2>Hai vinto!</h2>
       <p id="win-message">Lo sapevo che ci conoscevi bene. Grazie per esserci — ogni giorno con te è un'avventura. Buon anniversario! 🎉</p>
+      <button id="btn-win-journey" class="btn-journey" hidden>🗺️ IL NOSTRO VIAGGIO</button>
       <button id="btn-win-restart" class="btn-primary">GIOCA ANCORA</button>
     </div>
   </div>
 
+  <!-- ── Il nostro viaggio: la freccia salta di tappa in tappa (journey.js) ── -->
+  <div id="screen-journey" class="screen">
+    <div id="journey-map"></div>
+    <div class="journey-card" id="journey-card" aria-live="polite">
+      <p class="journey-date" id="journey-date"></p>
+      <p class="journey-place" id="journey-place"></p>
+      <p class="journey-note" id="journey-note"></p>
+    </div>
+    <div class="journey-bar">
+      <div class="journey-track" id="journey-track"><div class="journey-fill" id="journey-fill"></div></div>
+      <p class="journey-days" id="journey-days"></p>
+    </div>
+    <button type="button" class="journey-skip" id="journey-skip">SALTA ⏭</button>
+    <button type="button" class="btn-primary journey-continue" id="journey-continue" hidden>CONTINUA ❤️</button>
+  </div>
+
   <!-- In locale c'è questions.js (in chiaro); online solo questions.enc.js (cifrato) -->
   <script src="questions.js"></script>
-  <script src="questions.enc.js?v=8c4175cb"></script>
+  <!-- Tappe del viaggio finale: solo in locale (online sono dentro questions.enc.js) -->
+  <script src="timeline-data.js"></script>
+  <script src="questions.enc.js?v=4b849abf"></script>
   <!-- Regole degli scacchi per le domande "♟ Scacchi" -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-  <script src="game.js?v=a387b21a"></script>
+  <script src="game.js?v=407cc65b"></script>
   <script src="snowball.js?v=59f93fdd"></script>
   <script src="order.js?v=0de817fd"></script>
   <!-- Mappe per le domande "🗺️ Dove eravamo?" -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="map.js?v=17d15958"></script>
+  <script src="journey.js?v=30e1d3f7"></script>
   <script src="guillotine.js?v=5014931f"></script>
   <!-- Lotte in stile Pokémon per le domande "⚔️ Palestra" (i dati della palestra sono nella domanda) -->
   <script src="pokemon.js?v=eb2ddb9c"></script>

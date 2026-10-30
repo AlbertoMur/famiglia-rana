@@ -1864,3 +1864,218 @@ button {
   .pk-bezel { padding: 8px 12px 10px; }
   .pk-led { left: 3px; width: 5px; height: 5px; }
 }
+
+/* ── Il nostro viaggio (journey.js) ──── */
+
+.btn-journey {
+  display: block;
+  margin: -8px auto 18px;
+  font-family: var(--font-hand);
+  font-size: 1.25rem;
+  background: none;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline wavy rgba(214, 69, 69, 0.5);
+  text-underline-offset: 5px;
+}
+.btn-journey[hidden] { display: none; }
+
+#screen-journey {
+  padding: 0;
+  overflow: hidden;
+  background: var(--paper);
+  z-index: 40;
+}
+
+#journey-map {
+  position: absolute;
+  inset: 0;
+  background: #e9e4da;
+}
+#journey-map .leaflet-tile-pane {
+  filter: sepia(0.35) saturate(0.8) brightness(1.04);
+}
+
+/* Cartoncino in alto con data e luogo della tappa */
+.journey-card {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 1100;
+  width: min(360px, calc(100% - 32px));
+  padding: 10px 16px 12px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  box-shadow: 3px 4px 0 var(--ink);
+  text-align: center;
+  transform: translateX(-50%) rotate(-1.5deg);
+  pointer-events: none;
+}
+.journey-card.pop { animation: journeyPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes journeyPop {
+  from { transform: translateX(-50%) rotate(4deg) scale(0.6); opacity: 0; }
+  to   { transform: translateX(-50%) rotate(-1.5deg) scale(1); opacity: 1; }
+}
+.journey-date {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+  line-height: 1.1;
+}
+.journey-place {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 2.3rem;
+  line-height: 1;
+  color: var(--ink);
+}
+.journey-note {
+  font-family: var(--font-hand);
+  font-size: 1.1rem;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+.journey-note:empty { display: none; }
+
+/* Linea del tempo in basso: un pallino per tappa, distanziati come le date vere */
+.journey-bar {
+  position: absolute;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1100;
+  width: min(520px, calc(100% - 32px));
+  padding: 14px 18px 8px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-3);
+  box-shadow: 3px 4px 0 var(--ink);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.journey-track {
+  position: relative;
+  height: 4px;
+  margin: 6px 4px;
+  background: repeating-linear-gradient(90deg, var(--ink-soft) 0 6px, transparent 6px 11px);
+  border-radius: 2px;
+}
+.journey-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: var(--red);
+  border-radius: 2px;
+}
+.journey-dot {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  transition: background 0.3s, transform 0.3s;
+}
+.journey-dot.on   { background: var(--coral); }
+.journey-dot.here { transform: scale(1.5); background: var(--red); }
+.journey-days {
+  margin-top: 6px;
+  font-family: var(--font-hand);
+  font-size: 1.1rem;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.journey-skip {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right));
+  top: calc(max(14px, env(safe-area-inset-top)) + 104px);
+  z-index: 1100;
+  font-family: var(--font-hand);
+  font-size: 1rem;
+  padding: 4px 10px;
+  color: var(--ink);
+  background: rgba(253, 248, 236, 0.85);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--wobble-2);
+  cursor: pointer;
+}
+.journey-skip[hidden] { display: none; }
+
+.journey-continue {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 104px);
+  z-index: 1100;
+  translate: -50% 0;
+  white-space: nowrap;
+  animation: winPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+.journey-continue[hidden] { display: none; }
+
+/* Puntine numerate delle tappe */
+.journey-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  font-family: var(--font-marker);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--butter);
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  box-shadow: 2px 2px 0 var(--ink);
+  animation: journeyDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+.journey-pin.last { background: var(--coral); }
+@keyframes journeyDrop {
+  from { transform: translateY(-30px) scale(0.4); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* La freccia che salta (il transform esterno lo usa Leaflet, quindi ruoto quello interno) */
+.journey-arrow-inner {
+  width: 64px;
+  height: 28px;
+  transform-origin: 50% 50%;
+}
+.journey-arrow-inner svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.journey-shadow-inner {
+  width: 34px;
+  height: 8px;
+  background: rgba(42, 38, 34, 0.35);
+  border-radius: 50%;
+}
+
+.leaflet-tooltip.journey-tip {
+  font-family: var(--font-hand);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Cuoricini che escono quando la freccia arriva a una tappa */
+.journey-heart {
+  position: absolute;
+  z-index: 1050;
+  pointer-events: none;
+  translate: -50% -50%;
+  animation: journeyHeart 1.2s cubic-bezier(0.15, 0.7, 0.3, 1) backwards;
+  opacity: 0;
+}
+.journey-heart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+@keyframes journeyHeart {
+  0%   { transform: translate(0, 0) scale(0.2) rotate(0deg); opacity: 1; }
+  65%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1) rotate(var(--r)); opacity: 0; }
+}

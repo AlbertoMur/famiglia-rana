@@ -80,6 +80,8 @@ function playLocked() {
 let gameQuestions     = typeof QUESTIONS      !== 'undefined' ? QUESTIONS      : null;
 let gameStartQuestion = typeof START_QUESTION !== 'undefined' ? START_QUESTION : null;
 let gameItems         = typeof ITEMS          !== 'undefined' ? ITEMS          : {};
+// Tappe del viaggio finale (timeline-data.js in locale, dentro i dati cifrati online)
+let gameTimeline      = typeof TIMELINE       !== 'undefined' ? TIMELINE       : null;
 
 (function loadGameData() {
   try {
@@ -142,10 +144,11 @@ async function decryptGameData(password) {
   // Con la password sbagliata AES-GCM lancia un errore
   const plain = await subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(enc.iv) }, key, b64ToBytes(enc.data));
   const code = new TextDecoder().decode(plain);
-  const data = new Function(code + '\nreturn { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : {} };')();
+  const data = new Function(code + '\nreturn { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : {}, TIMELINE: typeof TIMELINE !== "undefined" ? TIMELINE : null };')();
   gameQuestions     = data.QUESTIONS;
   gameStartQuestion = data.START_QUESTION || Object.keys(data.QUESTIONS)[0];
   gameItems         = data.ITEMS;
+  gameTimeline      = data.TIMELINE || gameTimeline;
 }
 
 function initLockScreen() {
@@ -343,6 +346,7 @@ function clearCheckpoint() {
 function onGameDataReady() {
   showScreen('screen-title');
   if (testMode) initTestMode();
+  onJourneyDataReady();
 }
 
 function initTestMode() {
@@ -451,7 +455,10 @@ function showNotice(msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
   if (needsUnlock()) initLockScreen();
-  else if (testMode) initTestMode();
+  else {
+    if (testMode) initTestMode();
+    onJourneyDataReady();
+  }
   renderTitleCollection();
   updateCheckpointButtons();
 
@@ -463,6 +470,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-gameover-retry').addEventListener('click', () => startGame(true));
   document.querySelectorAll('.btn-from-scratch').forEach(b => {
     b.addEventListener('click', () => { getAudioCtx(); startGame(false); });
+  });
+  document.getElementById('btn-win-journey').addEventListener('click', () => {
+    playJourney(() => showScreen('screen-win'));
   });
   document.getElementById('btn-win-restart').addEventListener('click', () => {
     renderTitleCollection(); // aggiorna collezione prima di tornare al titolo
@@ -1118,8 +1128,29 @@ function showWin() {
       winMsg.textContent = 'Lo sapevo che ci conoscevi bene. Grazie per esserci — ogni giorno con te è un\'avventura. Buon anniversario! 🎉';
     }
   }
-  showScreen('screen-win');
-  launchConfetti();
+  // Prima il nostro viaggio sulla mappa, poi la polaroid con i coriandoli
+  if (journeyAvailable()) {
+    playJourney(() => { showScreen('screen-win'); launchConfetti(); });
+  } else {
+    showScreen('screen-win');
+    launchConfetti();
+  }
+}
+
+// ─── Il nostro viaggio (journey.js) ──────────────────────────────────────────
+
+function journeyAvailable() {
+  return typeof playJourney === 'function' && typeof L !== 'undefined'
+    && Array.isArray(gameTimeline) && gameTimeline.length > 0;
+}
+
+// Le tappe ci sono (subito, oppure dopo la password)
+function onJourneyDataReady() {
+  document.getElementById('btn-win-journey').hidden = !journeyAvailable();
+  // index.html?viaggio fa partire subito l'animazione finale (per provarla)
+  if (new URLSearchParams(location.search).has('viaggio') && journeyAvailable()) {
+    playJourney(() => showScreen('screen-win'));
+  }
 }
 
 // ─── Confetti ────────────────────────────────────────────────────────────────

@@ -12,3 +12,7 @@ p.png
 
 # Foto originali per gli sprite (solo in locale)
 sprites/foto/
+
+# Tappe del viaggio finale: private, vanno online solo cifrate dentro questions.enc.js
+timeline-data.js
+Eventi.txt

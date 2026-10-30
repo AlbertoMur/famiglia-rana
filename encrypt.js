@@ -13,6 +13,8 @@ const readline = require('readline');
 const ITERATIONS = 250000;
 const SRC = path.join(__dirname, 'questions.js');
 const OUT = path.join(__dirname, 'questions.enc.js');
+// Le tappe dell'animazione finale (privato anche questo): viaggia cifrato con le domande
+const TIMELINE_SRC = path.join(__dirname, 'timeline-data.js');
 
 // Deve restare identica a normalizePassword() in game.js
 function normalizePassword(p) {
@@ -41,7 +43,9 @@ async function encryptQuestions(password, hint = 'Password') {
     ['encrypt']
   );
 
-  const plain = new TextEncoder().encode(fs.readFileSync(SRC, 'utf8'));
+  let code = fs.readFileSync(SRC, 'utf8');
+  if (fs.existsSync(TIMELINE_SRC)) code += '\n' + fs.readFileSync(TIMELINE_SRC, 'utf8');
+  const plain = new TextEncoder().encode(code);
   const data = new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv }, key, plain));
 
   const b64 = (u) => Buffer.from(u).toString('base64');
@@ -66,7 +70,7 @@ async function main() {
   console.log('\n✔ Creato questions.enc.js — pubblica questo, NON questions.js.');
 }
 
-module.exports = { encryptQuestions, normalizePassword };
+module.exports = { encryptQuestions, normalizePassword, TIMELINE_SRC };
 
 if (require.main === module) {
   main().catch((e) => { console.error(e.message || e); process.exit(1); });

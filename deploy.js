@@ -11,7 +11,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { encryptQuestions, normalizePassword } = require('./encrypt.js');
+const { encryptQuestions, normalizePassword, TIMELINE_SRC } = require('./encrypt.js');
 
 const DIR           = __dirname;
 const QFILE         = path.join(DIR, 'questions.js');
@@ -69,7 +69,7 @@ function describeQuestions(file) {
 // GitHub Pages fa tenere i file in cache per 10 minuti: se index.html è nuovo ma
 // style.css è ancora quello vecchio la pagina si rompe. Aggiungo ?v=<hash del contenuto>
 // ai link dei file pubblicati, così un file cambiato ha sempre un indirizzo nuovo.
-const VERSIONED = ['style.css', 'game.js', 'snowball.js', 'order.js', 'map.js', 'yatzy.js', 'guillotine.js', 'pokemon.js', 'pokemon-world.js', 'pokemon-data.js', 'questions.enc.js',
+const VERSIONED = ['style.css', 'game.js', 'snowball.js', 'order.js', 'map.js', 'yatzy.js', 'guillotine.js', 'pokemon.js', 'pokemon-world.js', 'pokemon-data.js', 'journey.js', 'questions.enc.js',
                    'admin.css', 'admin.js', 'chess-puzzles.js', 'order-presets.js'];
 
 function bustCache() {
@@ -122,9 +122,10 @@ async function main() {
   const password = fs.readFileSync(PASSWORD_FILE, 'utf8').trim();
   if (!password) fail('password.txt è vuoto.');
 
-  // Ricifra solo se domande o password sono cambiate (ogni cifratura produce un file diverso)
+  // Ricifra solo se domande, tappe del viaggio o password sono cambiate (ogni cifratura produce un file diverso)
   const hash = crypto.createHash('sha256')
     .update(fs.readFileSync(QFILE)).update('\0').update(normalizePassword(password))
+    .update('\0').update(fs.existsSync(TIMELINE_SRC) ? fs.readFileSync(TIMELINE_SRC) : '')
     .digest('hex');
   let lastHash = '';
   try { lastHash = fs.readFileSync(HASH_FILE, 'utf8').trim(); } catch (e) {}
@@ -132,7 +133,7 @@ async function main() {
   if (hash !== lastHash || !fs.existsSync(ENC_FILE)) {
     await encryptQuestions(password, 'Password');
     fs.writeFileSync(HASH_FILE, hash);
-    console.log('• Domande cifrate → questions.enc.js');
+    console.log('• Domande' + (fs.existsSync(TIMELINE_SRC) ? ' e tappe del viaggio' : '') + ' cifrate → questions.enc.js');
   } else {
     console.log('• Domande invariate, niente da cifrare');
   }
@@ -146,7 +147,8 @@ async function main() {
 
   git(['add', '-A']);
   const staged = git(['diff', '--cached', '--name-only']).split('\n').map(s => s.trim()).filter(Boolean);
-  const leaked = staged.filter(f => EXPORT_NAME.test(path.basename(f)) || path.basename(f) === 'password.txt');
+  const PRIVATE = ['password.txt', 'timeline-data.js', 'Eventi.txt'];
+  const leaked = staged.filter(f => EXPORT_NAME.test(path.basename(f)) || PRIVATE.includes(path.basename(f)));
   if (leaked.length) {
     git(['reset', '-q']);
     fail('Bloccato: stavano per essere pubblicati file in chiaro: ' + leaked.join(', '));

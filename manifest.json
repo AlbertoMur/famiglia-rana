@@ -1,0 +1,17 @@
+{
+  "name": "Bad News Quiz",
+  "short_name": "Bad News",
+  "description": "The Impossible Quiz — Anniversary Edition",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#eadfc6",
+  "theme_color": "#eadfc6",
+  "lang": "it",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
