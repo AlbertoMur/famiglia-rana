@@ -2,21 +2,26 @@
 // della ghigliottina che gira su se stessa.
 // La lama trema (e la corda scricchiola) per avvisare, poi cade in modo ben visibile:
 // appena la si vede cadere si tocca lo schermo per abbassare la testa per un attimo.
-// Troppo presto o troppo tardi = colpito. Nei livelli alti ci sono finte (trema e non cade).
+// Troppo presto o troppo tardi = colpito. Nei livelli alti ci sono finte: la lama scatta
+// giù, si ferma, risale e subito dopo cade davvero.
+// Abbassare la testa a vuoto (per una finta o troppo presto) stordisce: per un po' non ci si
+// può riabbassare, e la finta è calcolata perché il colpo vero arrivi proprio in quel momento.
 // Si vince sopravvivendo a un certo numero di calate.
 //
 // La caduta dura più del tempo di reazione tipico su telefono (~0,3 s): è quella il segnale.
 
 const GL_LEVELS = {
-  //           calate  avviso (s)   caduta (s)  abbassata  finte   rotazione (°/s) base + per colpo
-  facile:    { drops: 5,  cue: [1.0, 1.4], fall: 0.55, duck: 0.6,  feint: 0,    spin: 20, spinUp: 5 },
-  normale:   { drops: 8,  cue: [0.7, 1.1], fall: 0.45, duck: 0.5,  feint: 0.2,  spin: 28, spinUp: 7 },
-  difficile: { drops: 10, cue: [0.5, 0.9], fall: 0.40, duck: 0.45, feint: 0.35, spin: 36, spinUp: 9 },
+  //           calate  avviso (s)   caduta (s)  abbassata  finte   stordito (s)  rotazione (°/s) base + per colpo
+  facile:    { drops: 5,  cue: [1.0, 1.4], fall: 0.55, duck: 0.6,  feint: 0,    stun: 1.0, spin: 20, spinUp: 5 },
+  normale:   { drops: 8,  cue: [0.7, 1.1], fall: 0.45, duck: 0.5,  feint: 0.2,  stun: 1.5, spin: 28, spinUp: 7 },
+  difficile: { drops: 10, cue: [0.5, 0.9], fall: 0.40, duck: 0.45, feint: 0.35, stun: 1.7, spin: 36, spinUp: 9 },
 };
 
 const GL_RISE = 0.7;     // risalita della lama (s)
 const GL_TRAVEL = 114;   // corsa della lama nel disegno (unità SVG)
 const GL_DUCK_DEPTH = 42;
+const GL_FAKE_DEPTH = 0.25;        // fin dove scende la lama nella finta (0-1 della corsa)
+const GL_FAKE_HOLD  = [0.15, 0.4]; // pausa dopo la finta, poi cade davvero (s)
 
 let gl = null; // partita in corso
 
@@ -98,6 +103,7 @@ function renderGuillotine(q) {
     phase: 'idle', t: 0, dur: glRand(1.2, 1.8),
     feint: false,
     duckT: 0, duckAge: 0, cooldown: 0,
+    duckUsed: false, stunned: false, fooled: false,
     angle: 0,
     bladeY: 0,
     hatT: -1,
@@ -111,6 +117,7 @@ function renderGuillotine(q) {
       msg: wrap.querySelector('#gl-msg'),
       count: wrap.querySelector('#gl-count'),
       stage: wrap.querySelector('#gl-stage'),
+      button: wrap.querySelector('#gl-duck'),
     },
     onKey: (e) => { if (e.code === 'Space' || e.code === 'ArrowDown') { e.preventDefault(); glDuck(); } },
   };
@@ -127,6 +134,8 @@ function glDuck() {
   getAudioCtx();
   gl.duckT = gl.cfg.duck;
   gl.duckAge = 0;
+  gl.duckUsed = false;
+  gl.fooled = gl.phase === 'fake' || gl.phase === 'hold';
   gl.cooldown = gl.cfg.duck + 0.35; // niente raffica: dopo una schivata serve un attimo
   playTone(330, 'sine', getAudioCtx().currentTime, 0.06, 0.08);
 }
@@ -156,8 +165,19 @@ function glLoop(now) {
 function glStep(dt) {
   const { cfg } = gl;
   gl.angle = (gl.angle + (cfg.spin + gl.survived * cfg.spinUp) * dt * (gl.phase === 'over' ? 0.3 : 1)) % 360;
-  if (gl.duckT > 0) { gl.duckT = Math.max(0, gl.duckT - dt); gl.duckAge += dt; }
+  if (gl.duckT > 0) {
+    gl.duckT = Math.max(0, gl.duckT - dt);
+    gl.duckAge += dt;
+    // Testa abbassata per niente: stordita, per un po' non si riabbassa
+    if (gl.duckT === 0 && !gl.duckUsed && gl.phase !== 'over') {
+      gl.cooldown = gl.cfg.stun;
+      gl.stunned = true;
+      glMsg(gl.fooled ? 'Ci sei cascata!' : 'Troppo presto!', 'bad');
+      playTone(180, 'sine', getAudioCtx().currentTime, 0.25, 0.08);
+    }
+  }
   gl.cooldown = Math.max(0, gl.cooldown - dt);
+  if (gl.cooldown === 0) gl.stunned = false;
   if (gl.hatT >= 0) gl.hatT += dt;
   if (gl.phase === 'over') return;
 
@@ -174,12 +194,24 @@ function glStep(dt) {
     case 'cue':
       if (gl.t >= gl.dur) {
         if (gl.feint) {
-          glMsg('Finta!');
-          gl.phase = 'idle'; gl.t = 0; gl.dur = glRand(0.9, 1.5);
+          // Scatta giù alla stessa velocità della caduta vera...
+          gl.phase = 'fake'; gl.t = 0; gl.dur = cfg.fall * GL_FAKE_DEPTH;
+          playTone(900, 'triangle', getAudioCtx().currentTime, 0.12, 0.08);
         } else {
           gl.phase = 'fall'; gl.t = 0; gl.dur = cfg.fall;
           playTone(900, 'triangle', getAudioCtx().currentTime, 0.18, 0.08);
         }
+      }
+      break;
+    case 'fake':
+      // ...si blocca, risale e dopo una breve pausa cade davvero
+      gl.bladeY = GL_FAKE_DEPTH * (gl.t < gl.dur ? gl.t / gl.dur : Math.max(0, 1 - (gl.t - gl.dur) / 0.12));
+      if (gl.t >= gl.dur + 0.12) { gl.bladeY = 0; gl.phase = 'hold'; gl.t = 0; gl.dur = glRand(...GL_FAKE_HOLD); }
+      break;
+    case 'hold':
+      if (gl.t >= gl.dur) {
+        gl.phase = 'fall'; gl.t = 0; gl.dur = cfg.fall;
+        playTone(900, 'triangle', getAudioCtx().currentTime, 0.18, 0.08);
       }
       break;
     case 'fall':
@@ -199,6 +231,7 @@ function glImpact() {
   playTone(90, 'square', t, 0.15, 0.25); // TUNK
 
   if (gl.duckT > 0) {
+    gl.duckUsed = true;
     gl.survived++;
     gl.els.count.textContent = gl.survived;
     if (gl.survived >= gl.cfg.drops) return glEnd(true);
@@ -244,8 +277,8 @@ function glDraw() {
   const { els } = gl;
   els.rot.setAttribute('transform', `rotate(${gl.angle.toFixed(2)} 150 190)`);
 
-  // La lama trema durante l'avviso
-  const shake = gl.phase === 'cue' ? Math.sin(gl.t * 70) * 2.2 : 0;
+  // La lama trema durante l'avviso e dopo la finta
+  const shake = gl.phase === 'cue' || gl.phase === 'hold' ? Math.sin(gl.t * 70) * 2.2 : 0;
   const y = gl.bladeY * GL_TRAVEL;
   els.blade.setAttribute('transform', `translate(${shake.toFixed(2)} ${y.toFixed(2)})`);
   els.rope.setAttribute('y2', (52 + y).toFixed(2));
@@ -253,7 +286,10 @@ function glDraw() {
   // Testa: scende in fretta, risale alla fine della schivata
   let duck = 0;
   if (gl.duckT > 0) duck = Math.min(1, gl.duckAge / 0.07, gl.duckT / 0.1);
-  els.head.setAttribute('transform', `translate(0 ${(duck * GL_DUCK_DEPTH).toFixed(2)})`);
+  // Stordita: la testa ondeggia e il bottone si spegne finché non si riprende
+  const dizzy = gl.stunned ? Math.sin(performance.now() / 70) * 6 : 0;
+  els.head.setAttribute('transform', `translate(0 ${(duck * GL_DUCK_DEPTH).toFixed(2)}) rotate(${dizzy.toFixed(1)} 150 214)`);
+  els.button.classList.toggle('gl-stunned', gl.stunned);
 
   // Il tricorno vola via quando la lama colpisce
   if (gl.hatT >= 0) {

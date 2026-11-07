@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <link rel="stylesheet" href="style.css?v=198bbe3c" />
+  <link rel="stylesheet" href="style.css?v=924b6253" />
 </head>
 <body>
 
@@ -51,6 +51,7 @@
       <h1>Bad News Quiz</h1>
       <p class="subtitle">Quanto ci conosci davvero? Una risposta sbagliata e tutto finisce.</p>
       <button id="btn-start" class="btn-primary">INIZIA</button>
+      <button id="btn-arcade" class="btn-arcade" hidden>🎮 SALA GIOCHI</button>
       <button class="btn-from-scratch" style="display:none">↺ Ricomincia da capo</button>
       <p class="sound-hint">🔊 Alza il volume e togli il silenzioso</p>
 
@@ -122,6 +123,7 @@
       <h2 class="stamp">BAD NEWS</h2>
       <p id="gameover-message"></p>
       <button id="btn-gameover-retry" class="btn-primary">RIPROVA</button>
+      <button id="btn-gameover-arcade" class="btn-arcade" hidden>🎮 TORNA ALLA SALA GIOCHI</button>
       <button class="btn-from-scratch" style="display:none">↺ Ricomincia da capo</button>
     </div>
   </div>
@@ -151,6 +153,28 @@
     </div>
   </div>
 
+  <!-- ── Sala giochi: tutti i minigiochi da rigiocare (game.js) ── -->
+  <div id="screen-arcade" class="screen">
+    <div class="arcade-box">
+      <h2>🎮 Sala giochi</h2>
+      <p class="arcade-sub">Rigioca quello che vuoi: qui non si perde niente.</p>
+      <div id="arcade-list"></div>
+      <button type="button" id="btn-arcade-back" class="btn-arcade-back">← Indietro</button>
+    </div>
+  </div>
+
+  <!-- Codice per aprire la sala giochi prima di aver vinto (tieni premuto il 💘) -->
+  <div id="arcade-code" class="arcade-code" hidden>
+    <form id="arcade-code-form" class="lock-box" autocomplete="off">
+      <span class="lock-emoji">🎮</span>
+      <h2>Codice segreto</h2>
+      <input id="arcade-code-input" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="scrivi qui" />
+      <p id="arcade-code-error"></p>
+      <button type="submit" class="btn-primary">ENTRA</button>
+      <button type="button" id="arcade-code-cancel" class="btn-arcade-back">Annulla</button>
+    </form>
+  </div>
+
   <!-- ── Il nostro viaggio: la freccia salta di tappa in tappa (journey.js) ── -->
   <div id="screen-journey" class="screen">
     <div id="journey-map"></div>
@@ -171,17 +195,17 @@
   <script src="questions.js"></script>
   <!-- Tappe del viaggio finale: solo in locale (online sono dentro questions.enc.js) -->
   <script src="timeline-data.js"></script>
-  <script src="questions.enc.js?v=8a11901f"></script>
+  <script src="questions.enc.js?v=a899bc27"></script>
   <!-- Regole degli scacchi per le domande "♟ Scacchi" -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-  <script src="game.js?v=407cc65b"></script>
+  <script src="game.js?v=f44cb55e"></script>
   <script src="snowball.js?v=59f93fdd"></script>
-  <script src="order.js?v=0de817fd"></script>
+  <script src="order.js?v=9d3167ee"></script>
   <!-- Mappe per le domande "🗺️ Dove eravamo?" -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script src="map.js?v=17d15958"></script>
   <script src="journey.js?v=30e1d3f7"></script>
-  <script src="guillotine.js?v=5014931f"></script>
+  <script src="guillotine.js?v=2356ec91"></script>
   <!-- Lotte in stile Pokémon per le domande "⚔️ Palestra" (i dati della palestra sono nella domanda) -->
   <script src="pokemon.js?v=eb2ddb9c"></script>
   <script src="pokemon-world.js?v=ba3a3285"></script>

@@ -82,12 +82,16 @@ let gameStartQuestion = typeof START_QUESTION !== 'undefined' ? START_QUESTION :
 let gameItems         = typeof ITEMS          !== 'undefined' ? ITEMS          : {};
 // Tappe del viaggio finale (timeline-data.js in locale, dentro i dati cifrati online)
 let gameTimeline      = typeof TIMELINE       !== 'undefined' ? TIMELINE       : null;
+// Codice che apre la sala giochi prima di aver vinto (si sceglie nell'admin)
+let gameArcadeCode    = typeof ARCADE_CODE    !== 'undefined' ? ARCADE_CODE    : '';
 
 (function loadGameData() {
   try {
     const raw   = localStorage.getItem('badnews_admin_questions');
     const start = localStorage.getItem('badnews_admin_start');
     const items = localStorage.getItem('badnews_admin_items');
+    const arcade = localStorage.getItem('badnews_admin_arcade');
+    if (arcade !== null) gameArcadeCode = arcade;
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
@@ -108,6 +112,8 @@ let gameTimeline      = typeof TIMELINE       !== 'undefined' ? TIMELINE       :
 // oppure index.html?test=q5 (parte subito da q5). Durante i test non si salva niente.
 const TEST_PARAM = new URLSearchParams(location.search).get('test');
 const testMode   = TEST_PARAM !== null;
+// Id della domanda che si sta giocando dalla sala giochi (null nel gioco normale)
+let arcadeId = null;
 
 // ─── Sblocco con password (questions.enc.js) ─────────────────────────────────
 
@@ -144,11 +150,12 @@ async function decryptGameData(password) {
   // Con la password sbagliata AES-GCM lancia un errore
   const plain = await subtle.decrypt({ name: 'AES-GCM', iv: b64ToBytes(enc.iv) }, key, b64ToBytes(enc.data));
   const code = new TextDecoder().decode(plain);
-  const data = new Function(code + '\nreturn { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : {}, TIMELINE: typeof TIMELINE !== "undefined" ? TIMELINE : null };')();
+  const data = new Function(code + '\nreturn { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : {}, TIMELINE: typeof TIMELINE !== "undefined" ? TIMELINE : null, ARCADE_CODE: typeof ARCADE_CODE !== "undefined" ? ARCADE_CODE : "" };')();
   gameQuestions     = data.QUESTIONS;
   gameStartQuestion = data.START_QUESTION || Object.keys(data.QUESTIONS)[0];
   gameItems         = data.ITEMS;
   gameTimeline      = data.TIMELINE || gameTimeline;
+  gameArcadeCode    = data.ARCADE_CODE || gameArcadeCode;
 }
 
 function initLockScreen() {
@@ -206,13 +213,14 @@ function loadCollection() {
 }
 
 function saveCollection() {
-  if (testMode) return;
+  if (testMode || arcadeId) return;
   try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(persistentCollection)); } catch (e) {}
 }
 
 function resetCollection() {
   persistentCollection = {};
   if (!testMode) { try { localStorage.removeItem(COLLECTION_KEY); } catch (e) {} }
+  if (!testMode && typeof clearLastOrders === 'function') clearLastOrders();
   renderTitleCollection();
 }
 
@@ -423,8 +431,10 @@ function startTestAt(id) {
 function updateCheckpointButtons() {
   const has = !!validCheckpoint();
   document.getElementById('btn-start').textContent          = has ? 'CONTINUA 🔥' : 'INIZIA';
-  document.getElementById('btn-gameover-retry').textContent = has ? 'RIPARTI DAL FALÒ 🔥' : 'RIPROVA';
-  document.querySelectorAll('.btn-from-scratch').forEach(b => { b.style.display = has ? '' : 'none'; });
+  document.getElementById('btn-gameover-retry').textContent = has && !arcadeId ? 'RIPARTI DAL FALÒ 🔥' : 'RIPROVA';
+  document.querySelectorAll('.btn-from-scratch').forEach(b => { b.style.display = has && !arcadeId ? '' : 'none'; });
+  document.getElementById('btn-gameover-arcade').hidden = !arcadeId;
+  document.getElementById('btn-arcade').hidden = !arcadeUnlocked();
 }
 
 function playBonfire() {
@@ -467,7 +477,11 @@ document.addEventListener('DOMContentLoaded', () => {
     getAudioCtx();
     startGame(true);
   });
-  document.getElementById('btn-gameover-retry').addEventListener('click', () => startGame(true));
+  document.getElementById('btn-gameover-retry').addEventListener('click', () => {
+    if (arcadeId) startArcadeGame(arcadeId);
+    else startGame(true);
+  });
+  initArcade();
   document.querySelectorAll('.btn-from-scratch').forEach(b => {
     b.addEventListener('click', () => { getAudioCtx(); startGame(false); });
   });
@@ -479,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startGame(false);
   });
   document.getElementById('btn-reset-collection').addEventListener('click', () => {
-    if (confirm('Sei sicuro? Verranno cancellati gli oggetti trovati e il falò: si ricomincia da zero.')) {
+    if (confirm('Sei sicuro? Verranno cancellati gli oggetti trovati, il falò e gli ordini provati: si ricomincia da zero.')) {
       resetCollection();
       clearCheckpoint();
       updateCheckpointButtons();
@@ -524,11 +538,12 @@ function loadQuestion(id) {
   questionCount++;
 
   // Falò: si accende la prima volta che ci si arriva (snapshot prima di eventuali rimozioni)
-  const newlyLit = q.bonfire && (!checkpoint || checkpoint.questionId !== id);
-  if (q.bonfire) saveCheckpoint(id);
+  const bonfire = q.bonfire && !arcadeId; // in sala giochi il falò non conta
+  const newlyLit = bonfire && (!checkpoint || checkpoint.questionId !== id);
+  if (bonfire) saveCheckpoint(id);
 
   const counter = document.getElementById('q-counter');
-  if (counter) counter.textContent = 'Domanda ' + questionCount + (checkpoint ? ' · 🔥' : '');
+  if (counter) counter.textContent = arcadeId ? '🎮 Sala giochi' : 'Domanda ' + questionCount + (checkpoint ? ' · 🔥' : '');
 
   if (q.removeItem) consumeItem(q.removeItem, q.removeItemMsg || null);
 
@@ -838,7 +853,7 @@ function renderJollyButton(q) {
     document.getElementById('game-wrapper').appendChild(jollyBtn);
   }
 
-  if (hasItem('jolly')) {
+  if (hasItem('jolly') && !arcadeId) { // in sala giochi non si salta
     jollyBtn.style.display = 'block';
     jollyBtn.textContent = '⭐ Usa Jolly (salta questa domanda)';
     jollyBtn.onclick = () => useJolly(q);
@@ -887,6 +902,7 @@ function handleAnswer(opt, btn) {
     disableAllButtons();
     if (opt.grantsItem) grantItem(opt.grantsItem, opt.grantsItemMsg || null);
     setTimeout(() => {
+      if (arcadeId) { arcadeWon(); return; }
       if (opt.secretNext) {
         currentQuestionId = opt.secretNext;
         gameActive = true;
@@ -910,6 +926,7 @@ function handleAnswer(opt, btn) {
     if (opt.grantsItem) grantItem(opt.grantsItem, opt.grantsItemMsg || null);
 
     setTimeout(() => {
+      if (arcadeId) { arcadeWon(); return; }
       if (opt.next) {
         currentQuestionId = opt.next;
         gameActive = true;
@@ -950,14 +967,25 @@ function updateInventoryUI() {
   const bar = document.getElementById('inventory-bar');
   if (!bar) return;
 
-  if (inventory.length === 0) {
+  const screen = document.getElementById('screen-game');
+  if (inventory.length === 0 || arcadeId) { // in sala giochi ha tutto: niente barra
     bar.classList.remove('visible');
     bar.innerHTML = '';
+    screen.classList.remove('has-inventory');
   } else {
     bar.classList.add('visible');
     bar.innerHTML = inventory.map(item =>
       `<span class="inv-item" title="${item.name}">${item.emoji} <span class="inv-name">${item.name}</span></span>`
     ).join('');
+    screen.classList.add('has-inventory');
+  }
+
+  // La barra può andare su più righe: la domanda deve stare sempre sotto di lei
+  if (!bar._sizeWatch && window.ResizeObserver) {
+    bar._sizeWatch = new ResizeObserver(() => {
+      if (bar.offsetHeight) screen.style.setProperty('--inv-h', bar.offsetHeight + 'px');
+    });
+    bar._sizeWatch.observe(bar);
   }
 
   updateVisionEffect();
@@ -1116,8 +1144,10 @@ function showGameOver(reason) {
 }
 
 function showWin() {
+  if (arcadeId) { arcadeWon(); return; }
   if (typeof stopSnowball === 'function') stopSnowball();
   clearCheckpoint(); // partita finita: il falò si spegne
+  unlockArcade();    // da ora la sala giochi è aperta
   playVictory();
   // Personalizza messaggio vittoria se si ha la lettera segreta
   const winMsg = document.getElementById('win-message');
@@ -1151,6 +1181,183 @@ function onJourneyDataReady() {
   if (new URLSearchParams(location.search).has('viaggio') && journeyAvailable()) {
     playJourney(() => showScreen('screen-win'));
   }
+}
+
+// ─── Sala giochi ─────────────────────────────────────────────────────────────
+// Elenco di tutti i minigiochi, per rigiocarli quando si vuole. Si apre da sola dopo
+// aver vinto il quiz; prima si arriva tenendo premuto il 💘 del titolo e scrivendo
+// il codice scelto nell'admin. Si gioca come la ▶ Prova: niente falò, niente
+// salvataggi, tutti gli oggetti in tasca.
+//
+// L'elenco si costruisce dalle domande: ogni domanda con uno di questi campi è un
+// minigioco. OGNI NUOVO MINIGIOCO VA AGGIUNTO QUI, con il campo che lo attiva.
+const MINIGAMES = [
+  { key: 'pokemon',    emoji: '⚔️', name: 'Palestra' },
+  { key: 'snowball',   emoji: '⛄', name: 'Palle di neve' },
+  { key: 'guillotine', emoji: '🗡️', name: 'Ghigliottina' },
+  { key: 'yatzy',      emoji: '🎲', name: 'Yatzy' },
+  { key: 'map',        emoji: '🗺️', name: 'Dove eravamo?' },
+  { key: 'ordering',   emoji: '📋', name: 'Metti in ordine' },
+  { key: 'chess',      emoji: '♟', name: 'Scacchi' },
+];
+
+const ARCADE_KEY      = 'badnews_arcade';      // '1' quando la sala giochi è aperta
+const ARCADE_DONE_KEY = 'badnews_arcade_done'; // id dei minigiochi già superati qui
+
+function arcadeUnlocked() {
+  try { return localStorage.getItem(ARCADE_KEY) === '1'; } catch (e) { return false; }
+}
+
+function unlockArcade() {
+  if (testMode) return;
+  try { localStorage.setItem(ARCADE_KEY, '1'); } catch (e) {}
+}
+
+function arcadeDone() {
+  try { return JSON.parse(localStorage.getItem(ARCADE_DONE_KEY)) || []; } catch (e) { return []; }
+}
+
+function arcadeList() {
+  const list = [];
+  MINIGAMES.forEach(mg => {
+    Object.entries(gameQuestions || {}).forEach(([id, q]) => {
+      if (!q[mg.key]) return;
+      const title = (mg.key === 'pokemon' && q.pokemon.name) || q.text || mg.name;
+      list.push({ id, mg, title });
+    });
+  });
+  return list;
+}
+
+function showArcade(wonId = null) {
+  // Si esce dal minigioco: tornano gli oggetti veri e la collezione salvata
+  arcadeId = null;
+  gameActive = false;
+  clearTimer();
+  inventory = [];
+  updateInventoryUI();
+  persistentCollection = {};
+  loadCollection();
+  renderTitleCollection();
+  updateCheckpointButtons();
+
+  const done = arcadeDone();
+  const box = document.getElementById('arcade-list');
+  box.innerHTML = '';
+  arcadeList().forEach(({ id, mg, title }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'arcade-item' + (id === wonId ? ' just-won' : '');
+    btn.innerHTML = `<span class="arcade-emoji">${mg.emoji}</span>
+      <span class="arcade-text"><small>${mg.name}</small><span></span></span>
+      <span class="arcade-check">${done.includes(id) ? '✔' : ''}</span>`;
+    btn.querySelector('.arcade-text span').textContent = title;
+    btn.addEventListener('click', () => startArcadeGame(id));
+    box.appendChild(btn);
+  });
+
+  if (journeyAvailable()) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'arcade-item arcade-journey';
+    btn.innerHTML = `<span class="arcade-emoji">❤️</span>
+      <span class="arcade-text"><small>Il finale</small><span>Il nostro viaggio</span></span>
+      <span class="arcade-check"></span>`;
+    btn.addEventListener('click', () => playJourney(() => showArcade()));
+    box.appendChild(btn);
+  }
+
+  showScreen('screen-arcade');
+  const won = box.querySelector('.just-won');
+  if (won) won.scrollIntoView({ block: 'center' });
+}
+
+function startArcadeGame(id) {
+  if (!gameQuestions || !gameQuestions[id]) return;
+  getAudioCtx();
+  clearTimer();
+  arcadeId = id;
+  // Tutti gli oggetti, tranne gli occhiali rotti che fanno solo vedere sfocato
+  inventory = Object.values(gameItems || {})
+    .filter(item => item.id !== 'occhiali_rotti')
+    .map(item => ({ ...item }));
+  updateInventoryUI();
+  questionCount = 0;
+  currentQuestionId = id;
+  gameActive = true;
+  loadQuestion(id);
+}
+
+function arcadeWon() {
+  const id = arcadeId;
+  gameActive = false;
+  clearTimer();
+  if (typeof stopSnowball === 'function') stopSnowball();
+  if (typeof destroyMapGame === 'function') destroyMapGame();
+  if (typeof destroyYatzy === 'function') destroyYatzy();
+  if (typeof destroyGuillotine === 'function') destroyGuillotine();
+  if (typeof destroyPokemon === 'function') destroyPokemon();
+  try {
+    const done = arcadeDone();
+    if (!done.includes(id)) localStorage.setItem(ARCADE_DONE_KEY, JSON.stringify([...done, id]));
+  } catch (e) {}
+  playVictory();
+  showArcade(id);
+  showNotice('✔ Superato!');
+}
+
+function initArcade() {
+  document.getElementById('btn-arcade').addEventListener('click', () => { getAudioCtx(); showArcade(); });
+  document.getElementById('btn-arcade-back').addEventListener('click', () => showScreen('screen-title'));
+  document.getElementById('btn-gameover-arcade').addEventListener('click', () => showArcade());
+
+  // Passaggio segreto: tenere premuto il 💘 del titolo per 2 secondi
+  const heart = document.querySelector('.title-emoji');
+  let pressTimer = null;
+  const cancel = () => { clearTimeout(pressTimer); heart.classList.remove('pressing'); };
+  heart.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    heart.classList.add('pressing');
+    pressTimer = setTimeout(() => {
+      heart.classList.remove('pressing');
+      getAudioCtx();
+      if (arcadeUnlocked()) showArcade();
+      else openArcadeCode();
+    }, 2000);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => heart.addEventListener(ev, cancel));
+  heart.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  const dialog = document.getElementById('arcade-code');
+  const form   = document.getElementById('arcade-code-form');
+  const input  = document.getElementById('arcade-code-input');
+  const error  = document.getElementById('arcade-code-error');
+  document.getElementById('arcade-code-cancel').addEventListener('click', () => { dialog.hidden = true; });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (gameArcadeCode && normalizePassword(input.value) === normalizePassword(gameArcadeCode)) {
+      dialog.hidden = true;
+      unlockArcade();
+      playCorrect();
+      showArcade();
+    } else {
+      playWrong();
+      error.textContent = 'Nope 😏';
+      form.classList.remove('animate-shake');
+      void form.offsetWidth;
+      form.classList.add('animate-shake');
+      input.select();
+    }
+  });
+}
+
+function openArcadeCode() {
+  const dialog = document.getElementById('arcade-code');
+  dialog.hidden = false;
+  document.getElementById('arcade-code-error').textContent = '';
+  const input = document.getElementById('arcade-code-input');
+  input.value = '';
+  input.focus();
 }
 
 // ─── Confetti ────────────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@
 let adminQuestions = {};
 let adminStartQuestion = 'q1';
 let adminItems = {};      // { id: { id, emoji, name } }
+let adminArcadeCode = ''; // codice che apre la sala giochi del gioco prima di aver vinto
 let editingId = null;
 let nodeDragPositions = {};
 
@@ -12,6 +13,7 @@ const STORAGE_KEY    = 'badnews_admin_questions';
 const STORAGE_START  = 'badnews_admin_start';
 const STORAGE_ITEMS  = 'badnews_admin_items';
 const STORAGE_LAYOUT = 'badnews_admin_layout';
+const STORAGE_ARCADE = 'badnews_admin_arcade';
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,9 @@ function loadFromStorage() {
     const start = localStorage.getItem(STORAGE_START);
     if (start) adminStartQuestion = start;
     else if (typeof START_QUESTION !== 'undefined') adminStartQuestion = START_QUESTION;
+    const arcade = localStorage.getItem(STORAGE_ARCADE);
+    if (arcade !== null) adminArcadeCode = arcade;
+    else if (typeof ARCADE_CODE !== 'undefined') adminArcadeCode = ARCADE_CODE;
 
     // Carica items: localStorage → poi merge con ITEMS dal file statico
     const rawItems = localStorage.getItem(STORAGE_ITEMS);
@@ -74,6 +79,7 @@ function saveToStorage() {
   localStorage.setItem(STORAGE_KEY,   JSON.stringify(adminQuestions));
   localStorage.setItem(STORAGE_START, adminStartQuestion);
   localStorage.setItem(STORAGE_ITEMS, JSON.stringify(adminItems));
+  localStorage.setItem(STORAGE_ARCADE, adminArcadeCode);
 }
 
 function saveLayoutToStorage() {
@@ -231,6 +237,10 @@ function bindEvents() {
     saveToStorage();
     toast('Domanda iniziale aggiornata', 'success');
   });
+  document.getElementById('arcade-code-field').addEventListener('input', (e) => {
+    adminArcadeCode = e.target.value.trim();
+    saveToStorage();
+  });
 }
 
 // ─── Render All ──────────────────────────────────────────────────────────────
@@ -239,6 +249,7 @@ function renderAll() {
   syncItemsFromQuestions();
   renderQuestionList();
   renderStartQuestionDropdown();
+  document.getElementById('arcade-code-field').value = adminArcadeCode;
   renderItemsList();
   renderGraph(false);
 }
@@ -1490,6 +1501,9 @@ async function exportJS() {
     '',
     'const START_QUESTION = ' + JSON.stringify(adminStartQuestion) + ';',
     '',
+    '// Codice per aprire la sala giochi prima di aver vinto (tieni premuto il 💘 del titolo)',
+    'const ARCADE_CODE = ' + JSON.stringify(adminArcadeCode) + ';',
+    '',
     '// Posizioni dei nodi nel grafo dell\'admin (il gioco le ignora)',
     'const LAYOUT = ' + JSON.stringify(nodeDragPositions) + ';',
   ].join('\n');
@@ -1523,7 +1537,7 @@ function importJS(e) {
       const code = ev.target.result;
 
       // Estrai QUESTIONS con regex-free parsing: usa Function
-      const fn = new Function(code + '\n return { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : null, LAYOUT: typeof LAYOUT !== "undefined" ? LAYOUT : null };');
+      const fn = new Function(code + '\n return { QUESTIONS, START_QUESTION, ITEMS: typeof ITEMS !== "undefined" ? ITEMS : null, LAYOUT: typeof LAYOUT !== "undefined" ? LAYOUT : null, ARCADE_CODE: typeof ARCADE_CODE !== "undefined" ? ARCADE_CODE : null };');
       const result = fn();
 
       if (!result.QUESTIONS || typeof result.QUESTIONS !== 'object') {
@@ -1532,6 +1546,7 @@ function importJS(e) {
 
       adminQuestions = result.QUESTIONS;
       if (result.START_QUESTION) adminStartQuestion = result.START_QUESTION;
+      if (typeof result.ARCADE_CODE === 'string') adminArcadeCode = result.ARCADE_CODE;
       if (result.ITEMS && typeof result.ITEMS === 'object') {
         adminItems = { ...adminItems, ...result.ITEMS };
       }

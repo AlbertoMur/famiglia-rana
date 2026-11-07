@@ -2,6 +2,29 @@
 // Gli elementi compaiono mescolati: si trascinano per riordinarli e si conferma.
 // Ogni opzione corretta ha il suo ordine (opt.order) e la sua strada (opt.next):
 // se l'ordine corrisponde a uno di questi si prosegue di lì, altrimenti è Bad News.
+// L'ultimo ordine confermato resta salvato sul telefono: riprovando si riparte da lì.
+
+const ORDER_LAST_KEY = 'badnews_order_last'; // { [id domanda]: [elementi nell'ultimo ordine provato] }
+
+function loadLastOrder(q) {
+  try {
+    const saved = (JSON.parse(localStorage.getItem(ORDER_LAST_KEY)) || {})[q.id];
+    return Array.isArray(saved) ? saved : null;
+  } catch (e) { return null; }
+}
+
+function saveLastOrder(q, order) {
+  if (testMode || arcadeId) return; // in test e in sala giochi non si salva niente
+  try {
+    const all = JSON.parse(localStorage.getItem(ORDER_LAST_KEY)) || {};
+    all[q.id] = order;
+    localStorage.setItem(ORDER_LAST_KEY, JSON.stringify(all));
+  } catch (e) {}
+}
+
+function clearLastOrders() {
+  try { localStorage.removeItem(ORDER_LAST_KEY); } catch (e) {}
+}
 
 function renderOrderGame(q) {
   const container = document.getElementById('options-container');
@@ -10,9 +33,13 @@ function renderOrderGame(q) {
   const routes = q.options.filter(o => o.correct && Array.isArray(o.order));
   if (!routes.length) return;
 
-  // Mescolo finché l'ordine di partenza non coincide con una soluzione
-  const items = [...routes[0].order];
-  do {
+  // Si riparte dall'ultimo ordine provato, se ha ancora gli stessi elementi (la domanda
+  // potrebbe essere cambiata); altrimenti mescolo finché non coincide con una soluzione
+  const last = testMode || arcadeId ? null : loadLastOrder(q);
+  const sameItems = last && last.length === routes[0].order.length
+    && [...last].sort().every((x, i) => x === [...routes[0].order].sort()[i]);
+  const items = sameItems ? [...last] : [...routes[0].order];
+  if (!sameItems) do {
     for (let i = items.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [items[i], items[j]] = [items[j], items[i]];
@@ -119,6 +146,7 @@ function confirmOrder(q, list, btn) {
   if (!gameActive || list.classList.contains('locked')) return;
   const current = [...list.children].map(li => li.dataset.value);
   const match = q.options.find(o => o.correct && Array.isArray(o.order) && o.order.every((x, i) => x === current[i]));
+  saveLastOrder(q, current);
 
   list.classList.add('locked');
   btn.disabled = true;

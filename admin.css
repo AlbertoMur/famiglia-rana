@@ -566,6 +566,8 @@ header .badge {
   display: none;
 }
 
+.start-question-row + .start-question-row { margin-top: 10px; }
+
 .start-question-row {
   display: flex;
   align-items: center;
@@ -579,7 +581,8 @@ header .badge {
   color: var(--text-dim);
 }
 
-.start-question-row select {
+.start-question-row select,
+.start-question-row input {
   background: #222;
   border: 1px solid #444;
   border-radius: 8px;
