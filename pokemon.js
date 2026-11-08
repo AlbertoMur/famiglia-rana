@@ -484,6 +484,17 @@ const PK_SONGS = {
     ],
     roots: [48, 43, 41, 43],
   },
+  // la presentazione all'inizio dell'avventura: calma, un po' sognante
+  intro: {
+    step: 0.22, vol: 0.018,
+    lead: [
+      [67, 0, 71, 74, 79, 0, 78, 76], [74, 0, 0, 71, 72, 74, 76, 0],
+      [72, 0, 76, 79, 84, 0, 83, 81], [79, 0, 0, 0, 78, 0, 74, 0],
+      [76, 0, 79, 83, 81, 79, 78, 76], [74, 0, 71, 74, 79, 0, 74, 0],
+      [72, 74, 76, 72, 71, 72, 74, 71], [67, 0, 0, 0, 0, 0, 0, 0],
+    ],
+    roots: [43, 40, 36, 38, 40, 43, 36, 43],
+  },
   gym: {
     step: 0.16,
     lead: [
@@ -1078,6 +1089,8 @@ function pkDraw() {
     return;
   } else if (v.scene === 'world') {
     pkDrawWorld();
+  } else if (v.scene === 'prologue') {
+    pkwDrawPrologue();
   } else if (v.scene === 'party') {
     pkDrawParty();
   } else if (v.scene === 'badge') {

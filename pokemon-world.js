@@ -282,12 +282,95 @@ async function pkwFade(to, dur = 0.25) {
   v.fade = to;
 }
 
+// ─── Presentazione (tappa 1) ─────────────────────────────────────────────────
+// Come all'inizio dei giochi Pokémon: schermo bianco, compare una creatura, poi FIAMMI
+// di fronte, la scelta del nome e infine lei che rimpicciolisce prima di entrare nel mondo.
+
+async function pkwPrologue(id) {
+  const v = pk.view, data = pk.data, gym = data.gym;
+  const front = data.sprites[gym.player.front] || data.sprites[gym.player.sprite];
+  const first = gym.player.team[0];
+  const mon = first && data.species[first.species];
+  v.pro = { who: null, s: { x: 0, dy: 0, scale: 1 } };
+  v.scene = 'prologue';
+  v.fade = 1;
+  pkMusicStart('intro');
+  await pkwFade(0, 0.6);
+  if (!pkAlive(id)) return;
+
+  await pkSay('Ciao! Benvenuta nel mondo dei POKéMON!');
+  if (!pkAlive(id)) return;
+
+  // Entra la prima creatura della squadra
+  if (mon) {
+    v.pro.who = { def: mon.sprite };
+    await pkTween(0.4, t => { v.pro.s.x = (1 - t) * 90; });
+    if (!pkAlive(id)) return;
+    pkNote(660, 'square', getAudioCtx().currentTime, 0.08, 0.05);
+    await pkSay('Questo mondo è abitato da creature chiamate POKéMON!');
+    if (!pkAlive(id)) return;
+    await pkSay('Alcuni vivono nell\'erba alta, altri in fondo alle grotte… e qualcuno perfino in CANTINA!');
+    if (!pkAlive(id)) return;
+    await pkTween(0.35, t => { v.pro.s.x = -t * 90; });
+    if (!pkAlive(id)) return;
+  }
+
+  // Entra lei, di fronte
+  v.pro.who = { def: front };
+  await pkTween(0.45, t => { v.pro.s.x = (1 - t) * 90; });
+  if (!pkAlive(id)) return;
+  await pkSay('E tu? Come ti chiami?', { keep: true });
+  if (!pkAlive(id)) return;
+
+  // Lei si sposta a destra per far posto ai nomi, come nei giochi
+  await pkTween(0.25, t => { v.pro.s.x = t * 42; });
+  if (!pkAlive(id)) return;
+  const names = ['FIAMMI', 'FIAMMETTA', 'AMORE'];
+  const pick = await pkChoose({ type: 'box', box: [0, 14, 96, 50],
+    items: names.map((n, i) => ({ label: n, x: 14, y: 23 + i * 12, w: 72 })) });
+  v.text = null;
+  if (!pkAlive(id)) return;
+  await pkTween(0.25, t => { v.pro.s.x = (1 - t) * 42; });
+  if (!pkAlive(id)) return;
+  if (pick === 0) await pkSay('FIAMMI, con la I! Che bel nome.');
+  else if (pick === 1) await pkSay('Troppo lungo per un Game Boy! Qui sarai FIAMMI.');
+  else await pkSay('Questo te lo dice solo una persona… Qui sarai FIAMMI.');
+  if (!pkAlive(id)) return;
+
+  await pkSay(gym.player.name + '! Il tuo viaggio nel mondo dei POKéMON sta per cominciare!');
+  if (!pkAlive(id)) return;
+  await pkSay('Ti aspettano lotte, amici e qualche sorpresa. Andiamo!');
+  if (!pkAlive(id)) return;
+
+  // Rimpicciolisce e sparisce nel mondo
+  pkNote(880, 'square', getAudioCtx().currentTime, 0.3, 0.04);
+  await pkTween(0.9, t => { v.pro.s.scale = 1 - t * 0.8; });
+  if (!pkAlive(id)) return;
+  await pkwFade(1, 0.5);
+  v.pro = null;
+}
+
+function pkwDrawPrologue() {
+  const { ctx, view: v } = pk;
+  ctx.fillStyle = PK_COLORS.w;
+  ctx.fillRect(0, 0, PK_W, PK_H);
+  if (!v.pro || !v.pro.who) return;
+  // ombra a terra, poi la figura (ancorata in basso, così rimpicciolendo resta coi piedi lì)
+  ctx.fillStyle = '#d8d8d8';
+  const sw = 22 * v.pro.s.scale;
+  ctx.fillRect(Math.round(80 + v.pro.s.x - sw), 80, Math.round(sw * 2), 3);
+  // lo spostamento va nella posizione, non in s.x: pkDrawSprite ritaglia attorno al riquadro
+  pkDrawSprite(v.pro.who.def, null, false, 52 + Math.round(v.pro.s.x), 24, { x: 0, dy: 0, scale: v.pro.s.scale });
+}
+
 // ─── Svolgimento ─────────────────────────────────────────────────────────────
 
 async function pkWorldMain(id) {
   const { data } = pk;
   const w = data.gym.world;
   const v = pk.view;
+  if (w.prologue) await pkwPrologue(id);
+  if (!pkAlive(id)) return;
   pk.world = { taken: {}, defeated: {}, steps: 0, pushed: false };
   pkwEnter(w.start.map, w.start.x, w.start.y, w.start.dir);
   v.fade = 1;

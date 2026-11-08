@@ -563,6 +563,53 @@ const PK_SPRITES = {
     ['r', 21, 40, 3, 13, 'n'], ['r', 19, 41, 2, 2, 'n'],
     ['e', 31.5, 46.5, 5, 6.5, 'n'], ['e', 31.5, 46.5, 2.4, 4.2, 'a', { shade: false }],
   ] },
+  // FIAMMI di fronte, solo per la presentazione all'inizio dell'avventura (faccia dalla foto,
+  // occhiali gialli e capelli corti; stessa maglia corallo di fiammi_back)
+  fiammi_front: { w: 56, h: 56, pal: { a: '#f45464', b: '#c83646', s: '#f0c0a0', t: '#e2a888', u: '#c48468', h: '#5a3a28', g: '#3c2618', i: '#8a6040', o: '#e8602c', y: '#f2b42a', c: '#f4a094', r: '#c83040', m: '#f8f8f8' }, shapes: [
+    // maglia corallo fluo (davanti niente scritte: nome e 10 sono dietro)
+    ['p', [[6, 56], [9, 46], [19, 40], [37, 40], [47, 46], [50, 56]], 'a'],
+    ['l', 15, 43, 13, 56, 'b'], ['l', 41, 43, 43, 56, 'b'],
+    ['r', 23, 33, 10, 8, 's'],
+    ['e', 28, 40.2, 6.5, 2.6, 's', { shade: false }],
+    ['l', 21.5, 40, 28, 43, 'k'], ['l', 34.5, 40, 28, 43, 'k'],
+    ['p', [[21.5, 39.5], [34.5, 39.5], [28, 43]], 's'],
+    // collana corallo
+    ['px', 23, 40, 'r'], ['px', 25, 41, 'r'], ['px', 27, 42, 'r'], ['px', 29, 42, 'r'], ['px', 31, 41, 'r'], ['px', 33, 40, 'r'],
+    ['r', 37, 47, 3, 2, 'm'],
+    // capelli dietro (volume ai lati)
+    ['e', 28, 19, 12.5, 11.5, 'h'],
+    // orecchie e viso
+    ['e', 17.3, 25.5, 2.2, 3.3, 's'], ['e', 38.7, 25.5, 2.2, 3.3, 's'],
+    ['e', 28, 25, 10.2, 12, 's'],
+    ['e', 28, 33.5, 7, 3.6, 't'],
+    ['e', 28, 32.5, 7.6, 3.4, 's'],
+    // frangia corta spettinata, di lato
+    ['p', [[17, 23], [16.5, 14], [19.5, 8.5], [27, 6], [35, 7], [39.5, 12.5], [39.5, 22], [37.5, 16], [34, 13.5], [30, 15], [25, 16], [21, 17.5], [18.5, 22]], 'h'],
+    // ciuffi sopra le orecchie e punte della frangia
+    ['p', [[17, 13], [19, 17], [18.5, 25], [16, 27], [15, 20]], 'h'], ['p', [[39, 13], [37, 17], [37.5, 25], [40, 27], [41, 20]], 'h'],
+    ['p', [[21, 17], [23, 17], [22, 20]], 'h'], ['p', [[26, 16], [29, 15.5], [27, 19]], 'h'], ['p', [[33, 14], [36, 15], [35, 18.5]], 'h'],
+    ['l', 21, 10, 19, 17, 'g'], ['l', 25, 8, 23, 14, 'g'], ['l', 30, 8, 33, 13, 'g'], ['l', 35, 9, 38, 15, 'g'],
+    ['l', 27, 7, 31, 7, 'i'], ['l', 22, 9, 24, 8, 'i'],
+    // occhiali da sole in testa (come nella foto di schiena)
+    ['p', [[19.5, 9.5], [21, 6.5], [28, 5], [35, 6.5], [36.5, 9.5], [35, 8], [28, 7], [21, 8]], 'o'],
+    // sopracciglia
+    ['l', 20, 20, 24, 19.5, 'g'], ['l', 32, 19.5, 36, 20, 'g'],
+    // occhiali gialli
+    ['e', 23, 24.5, 4.9, 4, 'k'], ['e', 33, 24.5, 4.9, 4, 'k'],
+    ['e', 23, 24.5, 4.1, 3.2, 'y'], ['e', 33, 24.5, 4.1, 3.2, 'y'],
+    ['e', 23, 24.5, 2.9, 2.1, 's'], ['e', 33, 24.5, 2.9, 2.1, 's'],
+    ['r', 27, 23, 2, 1, 'y'], ['l', 16, 23, 18, 23, 'y'], ['l', 38, 23, 40, 23, 'y'],
+    // occhi sorridenti
+    ['r', 22, 24, 2, 1, 'k'], ['px', 21, 25, 'k'], ['px', 24, 25, 'k'],
+    ['r', 32, 24, 2, 1, 'k'], ['px', 31, 25, 'k'], ['px', 34, 25, 'k'],
+    // naso e guance
+    ['l', 28, 27, 28, 28, 't'], ['px', 27, 29, 't'], ['px', 29, 29, 't'],
+    ['r', 19, 28, 2, 1, 'c'], ['r', 35, 28, 2, 1, 'c'],
+    // gran sorriso
+    ['p', [[23, 31], [33, 31], [31.5, 34], [28, 35], [24.5, 34]], 'k'],
+    ['p', [[24, 31.5], [32, 31.5], [31.3, 32.8], [24.7, 32.8]], 'm'],
+    ['l', 26, 34, 30, 34, 'r'],
+  ] },
   badge_calice: { w: 20, h: 20, pal: { a: '#f0d040', b: '#b08020', v: '#a01838' }, shapes: [
     ['e', 10, 10, 8.5, 8.5, 'a', { ol: true }],
     ['p', [[6, 4], [14, 4], [13.5, 8], [10, 11], [6.5, 8]], 'v', { shade: false, ol: true }],
@@ -907,12 +954,13 @@ const PK_GYMS = {
     name: 'PERCORSO 1', sub: 'TAPPA 1 DI 3',
     badge: { name: 'MEDAGLIA SCINTILLA', sprite: 'badge_scintilla' },
     player: {
-      name: 'FIAMMI', sprite: 'fiammi_back', look: 'fiammi',
+      name: 'FIAMMI', sprite: 'fiammi_back', look: 'fiammi', front: 'fiammi_front',
       team: [{ species: 'ranella', level: 16 }, { species: 'fiammino', level: 16 }, { species: 'ciuffetto', level: 17 }],
       bag: { pozione: 3, superpozione: 1 },
     },
     world: {
       start: { map: 'percorso1', x: 7, y: 22, dir: 'up' },
+      prologue: true, // prima di partire: la presentazione come all'inizio dei giochi Pokémon
       intro: 'Eccoti sul PERCORSO 1! In fondo alla strada ti aspetta la PALESTRA SCINTILLA.',
     },
   },
@@ -988,6 +1036,7 @@ function pkBundle(gymId) {
     }
   }
   if (PK_SPRITES[gym.player.sprite]) b.sprites[gym.player.sprite] = PK_SPRITES[gym.player.sprite];
+  if (PK_SPRITES[gym.player.front]) b.sprites[gym.player.front] = PK_SPRITES[gym.player.front];
   if (gym.badge && PK_SPRITES[gym.badge.sprite]) b.sprites[gym.badge.sprite] = PK_SPRITES[gym.badge.sprite];
   return JSON.parse(JSON.stringify(b));
 }
